@@ -53,9 +53,10 @@ func sgt(pkgPaths []string) error {
 
 // compilePackage compiles the given Go package into an LLVM IR module.
 func compilePackage(pkg *ssa.Package) error {
-	gen := newGenerator(pkg)
 	// TODO: remove debug output.
 	pkg.WriteTo(os.Stdout)
+
+	gen := newGenerator(pkg)
 	// Sort member names.
 	memberNames := make([]string, 0, len(pkg.Members))
 	for memberName := range pkg.Members {

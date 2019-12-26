@@ -55,37 +55,37 @@ func (gen *generator) compileMember(memberName string, member ssa.Member) error 
 }
 
 // compileNamedConst compiles the given SSA NamedConst into LLVM IR.
-func (gen *generator) compileNamedConst(constName string, c *ssa.NamedConst) error {
-	fmt.Println("compileNamedConst")
+func (gen *generator) compileNamedConst(constName string, goConst *ssa.NamedConst) error {
 	// TODO: remove debug output.
-	fmt.Println(c)
+	fmt.Println("compileNamedConst")
+	fmt.Println(goConst)
 	fmt.Println()
 	return nil
 }
 
 // compileGlobal compiles the given SSA Global into LLVM IR.
-func (gen *generator) compileGlobal(globalName string, global *ssa.Global) error {
-	fmt.Println("compileGlobal")
+func (gen *generator) compileGlobal(globalName string, goGlobal *ssa.Global) error {
 	// TODO: remove debug output.
-	fmt.Println(global)
+	fmt.Println("compileGlobal")
+	fmt.Println(goGlobal)
 	fmt.Println()
 	return nil
 }
 
 // compileFunction compiles the given SSA Function into LLVM IR.
-func (gen *generator) compileFunction(funcName string, f *ssa.Function) error {
-	fmt.Println("compileFunction")
+func (gen *generator) compileFunction(funcName string, goFunc *ssa.Function) error {
 	// TODO: remove debug output.
-	fmt.Println(f)
+	fmt.Println("compileFunction")
+	fmt.Println(goFunc)
 	fmt.Println()
 	return nil
 }
 
 // compileType compiles the given SSA Type into LLVM IR.
-func (gen *generator) compileType(typeName string, typ *ssa.Type) error {
-	fmt.Println("compileType")
+func (gen *generator) compileType(typeName string, goType *ssa.Type) error {
 	// TODO: remove debug output.
-	fmt.Println(typ)
+	fmt.Println("compileType")
+	fmt.Println(goType)
 	fmt.Println()
 	return nil
 }

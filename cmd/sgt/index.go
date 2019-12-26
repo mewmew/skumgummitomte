@@ -3,6 +3,9 @@ package main
 import (
 	"fmt"
 
+	"github.com/llir/llvm/ir"
+	"github.com/llir/llvm/ir/types"
+	irtypes "github.com/llir/llvm/ir/types"
 	"golang.org/x/tools/go/ssa"
 )
 
@@ -23,37 +26,87 @@ func (gen *generator) indexMember(memberName string, member ssa.Member) error {
 }
 
 // indexNamedConst indexes the given SSA NamedConst into LLVM IR.
-func (gen *generator) indexNamedConst(constName string, c *ssa.NamedConst) error {
-	fmt.Println("indexNamedConst")
+func (gen *generator) indexNamedConst(constName string, goConst *ssa.NamedConst) error {
 	// TODO: remove debug output.
-	fmt.Println(c)
+	fmt.Println("indexNamedConst")
+	fmt.Println(goConst)
 	fmt.Println()
 	return nil
 }
 
 // indexGlobal indexes the given SSA Global into LLVM IR.
-func (gen *generator) indexGlobal(globalName string, global *ssa.Global) error {
-	fmt.Println("indexGlobal")
+func (gen *generator) indexGlobal(globalName string, goGlobal *ssa.Global) error {
 	// TODO: remove debug output.
-	fmt.Println(global)
+	fmt.Println("indexGlobal")
+	fmt.Println(goGlobal)
 	fmt.Println()
 	return nil
 }
 
 // indexFunction indexes the given SSA Function into LLVM IR.
-func (gen *generator) indexFunction(funcName string, f *ssa.Function) error {
-	fmt.Println("indexFunction")
+func (gen *generator) indexFunction(funcName string, goFunc *ssa.Function) error {
 	// TODO: remove debug output.
-	fmt.Println(f)
+	fmt.Println("indexFunction")
+	fmt.Println(goFunc)
+
+	// TODO: add support for receiver of methods.
+
+	// Convert Go function parameters to equivalent LLVM IR function parameters.
+	var params []*ir.Param
+	goParams := goFunc.Signature.Params()
+	for i := 0; i < goParams.Len(); i++ {
+		goParam := goParams.At(i)
+		paramName := goParam.Name()
+		goParamType := goParam.Type()
+		paramType := llTypeFromGoType(goParamType)
+		param := ir.NewParam(paramName, paramType)
+		params = append(params, param)
+	}
+
+	// Convert Go function return types to equivalent LLVM IR function return
+	// types.
+	var resultTypes []irtypes.Type
+	goResults := goFunc.Signature.Results()
+	for i := 0; i < goResults.Len(); i++ {
+		goResult := goResults.At(i)
+		resultName := goResult.Name()
+		// TODO: add resultName as field name of (custom) result structure type.
+		_ = resultName
+		goResultType := goResult.Type()
+		resultType := llTypeFromGoType(goResultType)
+		resultTypes = append(resultTypes, resultType)
+	}
+	// Convert multiple return types a single return type by creating a structure
+	// type with one field per return type.
+	var retType types.Type
+	switch len(resultTypes) {
+	// void return.
+	case 0:
+		retType = irtypes.Void
+	// single return type.
+	case 1:
+		retType = resultTypes[0]
+	// multiple return types.
+	default:
+		retType = irtypes.NewStruct(resultTypes...)
+	}
+
+	// Generate LLVM IR function declaration.
+	f := gen.module.NewFunc(funcName, retType, params...)
+	f.Sig.Variadic = goFunc.Signature.Variadic()
+	gen.funcs[funcName] = f
+
+	// TODO: remove debug output.
+	fmt.Println("f:", f.LLString())
 	fmt.Println()
 	return nil
 }
 
 // indexType indexes the given SSA Type into LLVM IR.
-func (gen *generator) indexType(typeName string, typ *ssa.Type) error {
-	fmt.Println("indexType")
+func (gen *generator) indexType(typeName string, goType *ssa.Type) error {
 	// TODO: remove debug output.
-	fmt.Println(typ)
+	fmt.Println("indexType")
+	fmt.Println(goType)
 	fmt.Println()
 	return nil
 }
