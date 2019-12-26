@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/llir/llvm/ir"
-	"github.com/llir/llvm/ir/types"
 	irtypes "github.com/llir/llvm/ir/types"
 	"golang.org/x/tools/go/ssa"
 )
@@ -87,7 +86,7 @@ func (gen *generator) indexFunction(funcName string, goFunc *ssa.Function) error
 	}
 	// Convert multiple return types a single return type by creating a structure
 	// type with one field per return type.
-	var retType types.Type
+	var retType irtypes.Type
 	switch len(resultTypes) {
 	// void return.
 	case 0:

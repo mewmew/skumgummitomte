@@ -4,7 +4,6 @@ import (
 	"fmt"
 	gotypes "go/types"
 
-	"github.com/llir/llvm/ir/types"
 	irtypes "github.com/llir/llvm/ir/types"
 )
 
@@ -102,7 +101,7 @@ func (gen *generator) initPredeclaredTypes() {
 	gen.predeclaredTypes[stringType.Name()] = stringType
 	gen.module.TypeDefs = append(gen.module.TypeDefs, stringType)
 	// unsafe pointer types.
-	unsafePointerType := irtypes.NewPointer(types.NewInt(8)) // void*
+	unsafePointerType := irtypes.NewPointer(irtypes.NewInt(8)) // void*
 	unsafePointerType.SetName("unsafe.Pointer")
 	gen.predeclaredTypes[unsafePointerType.Name()] = unsafePointerType
 	gen.module.TypeDefs = append(gen.module.TypeDefs, unsafePointerType)

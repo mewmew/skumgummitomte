@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/constant"
-	"github.com/llir/llvm/ir/types"
+	irtypes "github.com/llir/llvm/ir/types"
 	"golang.org/x/tools/go/ssa"
 )
 
@@ -21,9 +21,9 @@ type generator struct {
 	// Map from function name to LLVM IR function.
 	funcs map[string]*ir.Func
 	// Map from type name to LLVM IR type.
-	types map[string]types.Type
+	types map[string]irtypes.Type
 	// Map from predeclared type name to LLVM IR type.
-	predeclaredTypes map[string]types.Type
+	predeclaredTypes map[string]irtypes.Type
 }
 
 // newGenerator returns a new LLVM IR generator for the given SSA Go package.
@@ -34,7 +34,7 @@ func newGenerator(pkg *ssa.Package) *generator {
 		consts:           make(map[string]constant.Constant),
 		globals:          make(map[string]*ir.Global),
 		funcs:            make(map[string]*ir.Func),
-		types:            make(map[string]types.Type),
-		predeclaredTypes: make(map[string]types.Type),
+		types:            make(map[string]irtypes.Type),
+		predeclaredTypes: make(map[string]irtypes.Type),
 	}
 }
