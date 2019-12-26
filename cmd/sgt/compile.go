@@ -6,6 +6,7 @@ import (
 	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/constant"
 	"github.com/llir/llvm/ir/types"
+	"github.com/pkg/errors"
 	"golang.org/x/tools/go/ssa"
 )
 
@@ -24,17 +25,20 @@ type generator struct {
 	funcs map[string]*ir.Func
 	// Map from type name to LLVM IR type.
 	types map[string]types.Type
+	// Map from predeclared type name to LLVM IR type.
+	predeclaredTypes map[string]types.Type
 }
 
 // newGenerator returns a new LLVM IR generator for the given SSA Go package.
 func newGenerator(pkg *ssa.Package) *generator {
 	return &generator{
-		pkg:     pkg,
-		module:  ir.NewModule(),
-		consts:  make(map[string]constant.Constant),
-		globals: make(map[string]*ir.Global),
-		funcs:   make(map[string]*ir.Func),
-		types:   make(map[string]types.Type),
+		pkg:              pkg,
+		module:           ir.NewModule(),
+		consts:           make(map[string]constant.Constant),
+		globals:          make(map[string]*ir.Global),
+		funcs:            make(map[string]*ir.Func),
+		types:            make(map[string]types.Type),
+		predeclaredTypes: make(map[string]types.Type),
 	}
 }
 
@@ -60,6 +64,12 @@ func (gen *generator) compileNamedConst(constName string, goConst *ssa.NamedCons
 	fmt.Println("compileNamedConst")
 	fmt.Println(goConst)
 	fmt.Println()
+
+	c, ok := gen.consts[constName]
+	if !ok {
+		return errors.Errorf("unable to locate LLVM IR constant %q", constName)
+	}
+	_ = c
 	return nil
 }
 
@@ -69,6 +79,12 @@ func (gen *generator) compileGlobal(globalName string, goGlobal *ssa.Global) err
 	fmt.Println("compileGlobal")
 	fmt.Println(goGlobal)
 	fmt.Println()
+
+	global, ok := gen.globals[globalName]
+	if !ok {
+		return errors.Errorf("unable to locate LLVM IR global %q", globalName)
+	}
+	_ = global
 	return nil
 }
 
@@ -78,6 +94,12 @@ func (gen *generator) compileFunction(funcName string, goFunc *ssa.Function) err
 	fmt.Println("compileFunction")
 	fmt.Println(goFunc)
 	fmt.Println()
+
+	f, ok := gen.funcs[funcName]
+	if !ok {
+		return errors.Errorf("unable to locate LLVM IR function %q", funcName)
+	}
+	_ = f
 	return nil
 }
 

@@ -39,6 +39,15 @@ func (gen *generator) indexGlobal(globalName string, goGlobal *ssa.Global) error
 	// TODO: remove debug output.
 	fmt.Println("indexGlobal")
 	fmt.Println(goGlobal)
+
+	// Generate LLVM IR global variable declaration.
+	goType := goGlobal.Type()
+	globalType := gen.llTypeFromGoType(goType)
+	global := gen.module.NewGlobal(globalName, globalType)
+	gen.globals[globalName] = global
+
+	// TODO: remove debug output.
+	fmt.Println("global:", global.LLString())
 	fmt.Println()
 	return nil
 }
@@ -58,7 +67,7 @@ func (gen *generator) indexFunction(funcName string, goFunc *ssa.Function) error
 		goParam := goParams.At(i)
 		paramName := goParam.Name()
 		goParamType := goParam.Type()
-		paramType := llTypeFromGoType(goParamType)
+		paramType := gen.llTypeFromGoType(goParamType)
 		param := ir.NewParam(paramName, paramType)
 		params = append(params, param)
 	}
@@ -73,7 +82,7 @@ func (gen *generator) indexFunction(funcName string, goFunc *ssa.Function) error
 		// TODO: add resultName as field name of (custom) result structure type.
 		_ = resultName
 		goResultType := goResult.Type()
-		resultType := llTypeFromGoType(goResultType)
+		resultType := gen.llTypeFromGoType(goResultType)
 		resultTypes = append(resultTypes, resultType)
 	}
 	// Convert multiple return types a single return type by creating a structure
