@@ -4,6 +4,7 @@ import (
 	"flag"
 	"log"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -20,7 +21,7 @@ func main() {
 	}
 }
 
-// sgt compiles the Go packages specified by package path patterns to LLVM IR
+// sgt compiles the Go packages specified by package path patterns into LLVM IR
 // modules.
 func sgt(pkgPaths []string) error {
 	// Parse and type-check Go packages.
@@ -50,9 +51,30 @@ func sgt(pkgPaths []string) error {
 	return nil
 }
 
-// compilePackage compiles the given Go package to an LLVM IR module.
+// compilePackage compiles the given Go package into an LLVM IR module.
 func compilePackage(pkg *ssa.Package) error {
+	gen := newGenerator(pkg)
 	// TODO: remove debug output.
 	pkg.WriteTo(os.Stdout)
+	// Sort member names.
+	memberNames := make([]string, 0, len(pkg.Members))
+	for memberName := range pkg.Members {
+		memberNames = append(memberNames, memberName)
+	}
+	sort.Strings(memberNames)
+	// Index SSA members of Go package.
+	for _, memberName := range memberNames {
+		member := pkg.Members[memberName]
+		if err := gen.indexMember(memberName, member); err != nil {
+			return errors.WithStack(err)
+		}
+	}
+	// Compile SSA members of Go package.
+	for _, memberName := range memberNames {
+		member := pkg.Members[memberName]
+		if err := gen.compileMember(memberName, member); err != nil {
+			return errors.WithStack(err)
+		}
+	}
 	return nil
 }
