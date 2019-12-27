@@ -37,7 +37,8 @@ func sgt(pkgPaths []string) error {
 		return errors.Errorf("packages contain errors (%s)", strings.Join(pkgPaths, ", "))
 	}
 	// Create SSA packages of Go packages.
-	prog, pkgs := ssautil.Packages(initial, ssa.PrintPackages)
+	mode := ssa.PrintPackages | ssa.PrintFunctions
+	prog, pkgs := ssautil.Packages(initial, mode)
 	_ = prog
 	// Build SSA code for all Go packages.
 	for _, pkg := range pkgs {
@@ -50,7 +51,7 @@ func sgt(pkgPaths []string) error {
 		if err != nil {
 			return errors.WithStack(err)
 		}
-		fmt.Println("LLVM IR module:")
+		fmt.Printf("LLVM IR module of %q:\n", pkg.Pkg.Name())
 		fmt.Println(module)
 	}
 	return nil
@@ -65,6 +66,8 @@ func compilePackage(pkg *ssa.Package) (*ir.Module, error) {
 	gen := newGenerator(pkg)
 	// Initialize LLVM IR types corresponding to the predeclared Go types.
 	gen.initPredeclaredTypes()
+	// Initialize LLVM IR functions corresponding to the predeclared Go functions.
+	gen.initPredeclaredFuncs()
 
 	// Sort member names of SSA Go package.
 	memberNames := make([]string, 0, len(pkg.Members))

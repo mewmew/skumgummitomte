@@ -8,7 +8,8 @@ import (
 	"golang.org/x/tools/go/ssa"
 )
 
-// indexMember indexes the given SSA member into LLVM IR.
+// indexMember indexes the given Go SSA member, creating a scaffolding for the
+// corresponding LLVM IR.
 func (gen *generator) indexMember(memberName string, member ssa.Member) error {
 	switch member := member.(type) {
 	case *ssa.NamedConst:
@@ -24,7 +25,8 @@ func (gen *generator) indexMember(memberName string, member ssa.Member) error {
 	}
 }
 
-// indexNamedConst indexes the given SSA NamedConst into LLVM IR.
+// indexNamedConst indexes the given Go SSA named constant, creating a
+// scaffolding for the corresponding LLVM IR constant.
 func (gen *generator) indexNamedConst(constName string, goConst *ssa.NamedConst) error {
 	// TODO: remove debug output.
 	fmt.Println("indexNamedConst")
@@ -33,7 +35,8 @@ func (gen *generator) indexNamedConst(constName string, goConst *ssa.NamedConst)
 	return nil
 }
 
-// indexGlobal indexes the given SSA Global into LLVM IR.
+// indexGlobal indexes the given Go SSA global, creating a scaffolding for the
+// corresponding LLVM IR global variable.
 func (gen *generator) indexGlobal(globalName string, goGlobal *ssa.Global) error {
 	// TODO: remove debug output.
 	fmt.Println("indexGlobal")
@@ -51,7 +54,8 @@ func (gen *generator) indexGlobal(globalName string, goGlobal *ssa.Global) error
 	return nil
 }
 
-// indexFunction indexes the given SSA Function into LLVM IR.
+// indexFunction indexes the given Go SSA function, creating a scaffolding for
+// the corresponding LLVM IR function.
 func (gen *generator) indexFunction(funcName string, goFunc *ssa.Function) error {
 	// TODO: remove debug output.
 	fmt.Println("indexFunction")
@@ -110,7 +114,8 @@ func (gen *generator) indexFunction(funcName string, goFunc *ssa.Function) error
 	return nil
 }
 
-// indexType indexes the given SSA Type into LLVM IR.
+// indexType indexes the given Go SSA type, creating a scaffolding for the
+// corresponding LLVM IR type.
 func (gen *generator) indexType(typeName string, goType *ssa.Type) error {
 	// TODO: remove debug output.
 	fmt.Println("indexType")

@@ -5,10 +5,11 @@ import (
 	gotypes "go/types"
 
 	irtypes "github.com/llir/llvm/ir/types"
+	"golang.org/x/tools/go/ssa"
 )
 
 // initPredeclaredTypes initializes LLVM IR types corresponding to the
-// predeclared types in Go.
+// predeclared types in Go (e.g. "bool").
 func (gen *generator) initPredeclaredTypes() {
 	// boolean type.
 	boolType := irtypes.NewInt(1)
@@ -93,10 +94,10 @@ func (gen *generator) initPredeclaredTypes() {
 	// string type.
 	// TODO: add support for LLVM IR structure types with field names.
 	//stringType = NewStruct(
-	//   Field{Name: "data", Type: uintptrType},
+	//   Field{Name: "data", Type: irtypes.NewPointer(irtypes.NewInt(8))},
 	//   Field{Name: "len", Type: intType},
 	//)
-	stringType := irtypes.NewStruct(uintptrType, intType)
+	stringType := irtypes.NewStruct(irtypes.NewPointer(irtypes.NewInt(8)), intType)
 	stringType.SetName("string")
 	gen.predeclaredTypes[stringType.Name()] = stringType
 	gen.module.TypeDefs = append(gen.module.TypeDefs, stringType)
@@ -105,6 +106,27 @@ func (gen *generator) initPredeclaredTypes() {
 	unsafePointerType.SetName("unsafe.Pointer")
 	gen.predeclaredTypes[unsafePointerType.Name()] = unsafePointerType
 	gen.module.TypeDefs = append(gen.module.TypeDefs, unsafePointerType)
+}
+
+// llTypeFromName returns the LLVM IR type for the corresponding Go type name.
+func (gen *generator) llTypeFromName(typeName string) irtypes.Type {
+	// TODO: handle shadowing of predeclared types based on scope.
+	if typ, ok := gen.predeclaredTypes[typeName]; ok {
+		return typ
+	}
+	if typ, ok := gen.types[typeName]; ok {
+		return typ
+	}
+	panic(fmt.Errorf("unable to locate LLVM IR type for the corresponding Go type name %q", typeName))
+}
+
+// compileType compiles the given Go SSA type into LLVM IR.
+func (gen *generator) compileType(typeName string, goType *ssa.Type) error {
+	// TODO: remove debug output.
+	fmt.Println("compileType")
+	fmt.Println(goType)
+	fmt.Println()
+	return nil
 }
 
 // llTypeFromGoType returns the LLVM IR type corresponding to the given Go type.
@@ -179,11 +201,7 @@ func (gen *generator) llTypeFromGoBasicType(goType *gotypes.Basic) irtypes.Type 
 	default:
 		panic(fmt.Errorf("support for Go basic type kind %v not yet implemented", kind))
 	}
-	typ, ok := gen.predeclaredTypes[typeName]
-	if !ok {
-		panic(fmt.Errorf("unable to locate LLVM IR type of predeclared Go type %q", typeName))
-	}
-	return typ
+	return gen.llTypeFromName(typeName)
 }
 
 // llTypeFromGoPointerType returns the LLVM IR type corresponding to the given
