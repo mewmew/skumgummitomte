@@ -45,7 +45,7 @@ func (gen *generator) compileCall(goInst *ssa.Call, fn *Func) error {
 		if !ok {
 			return errors.Errorf("unable to locate LLVM IR function of predeclared Go function %q", goCallee.Name())
 		}
-		fmt.Println("callee:", calleeFunc.LLString())
+		dbg.Println("callee:", calleeFunc.LLString())
 		callee = calleeFunc
 	default:
 		panic(fmt.Errorf("support for Go SSA call instruction callee %T not yet implemented", goCallee))

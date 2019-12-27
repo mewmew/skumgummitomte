@@ -29,9 +29,9 @@ func (gen *generator) indexMember(memberName string, member ssa.Member) error {
 // scaffolding for the corresponding LLVM IR constant.
 func (gen *generator) indexNamedConst(constName string, goConst *ssa.NamedConst) error {
 	// TODO: remove debug output.
-	fmt.Println("indexNamedConst")
-	fmt.Println(goConst)
-	fmt.Println()
+	dbg.Println("indexNamedConst")
+	dbg.Println(goConst)
+	dbg.Println()
 	return nil
 }
 
@@ -39,8 +39,8 @@ func (gen *generator) indexNamedConst(constName string, goConst *ssa.NamedConst)
 // corresponding LLVM IR global variable.
 func (gen *generator) indexGlobal(globalName string, goGlobal *ssa.Global) error {
 	// TODO: remove debug output.
-	fmt.Println("indexGlobal")
-	fmt.Println(goGlobal)
+	dbg.Println("indexGlobal")
+	dbg.Println(goGlobal)
 
 	// Generate LLVM IR global variable declaration.
 	goType := goGlobal.Type()
@@ -49,8 +49,8 @@ func (gen *generator) indexGlobal(globalName string, goGlobal *ssa.Global) error
 	gen.globals[globalName] = global
 
 	// TODO: remove debug output.
-	fmt.Println("global:", global.LLString())
-	fmt.Println()
+	dbg.Println("global:", global.LLString())
+	dbg.Println()
 	return nil
 }
 
@@ -58,8 +58,8 @@ func (gen *generator) indexGlobal(globalName string, goGlobal *ssa.Global) error
 // the corresponding LLVM IR function.
 func (gen *generator) indexFunction(funcName string, goFunc *ssa.Function) error {
 	// TODO: remove debug output.
-	fmt.Println("indexFunction")
-	fmt.Println(goFunc)
+	dbg.Println("indexFunction")
+	dbg.Println(goFunc)
 
 	// TODO: add support for receiver of methods.
 
@@ -109,8 +109,8 @@ func (gen *generator) indexFunction(funcName string, goFunc *ssa.Function) error
 	gen.funcs[funcName] = f
 
 	// TODO: remove debug output.
-	fmt.Println("f:", f.LLString())
-	fmt.Println()
+	dbg.Println("f:", f.LLString())
+	dbg.Println()
 	return nil
 }
 
@@ -118,8 +118,8 @@ func (gen *generator) indexFunction(funcName string, goFunc *ssa.Function) error
 // corresponding LLVM IR type.
 func (gen *generator) indexType(typeName string, goType *ssa.Type) error {
 	// TODO: remove debug output.
-	fmt.Println("indexType")
-	fmt.Println(goType)
-	fmt.Println()
+	dbg.Println("indexType")
+	dbg.Println(goType)
+	dbg.Println()
 	return nil
 }

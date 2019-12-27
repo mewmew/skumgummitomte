@@ -57,9 +57,9 @@ func NewFunc(f *ir.Func) *Func {
 // compileFunction compiles the given Go SSA function into LLVM IR.
 func (gen *generator) compileFunction(funcName string, goFunc *ssa.Function) error {
 	// TODO: remove debug output.
-	fmt.Println("compileFunction")
-	fmt.Println(goFunc)
-	fmt.Println()
+	dbg.Println("compileFunction")
+	dbg.Println(goFunc)
+	dbg.Println()
 
 	// Early return for function declaration (without body).
 	if len(goFunc.Blocks) == 0 {

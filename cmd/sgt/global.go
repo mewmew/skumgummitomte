@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-
 	irconstant "github.com/llir/llvm/ir/constant"
 	"github.com/pkg/errors"
 	"golang.org/x/tools/go/ssa"
@@ -11,9 +9,9 @@ import (
 // compileGlobal compiles the given Go SSA global into LLVM IR.
 func (gen *generator) compileGlobal(globalName string, goGlobal *ssa.Global) error {
 	// TODO: remove debug output.
-	fmt.Println("compileGlobal")
-	fmt.Println(goGlobal)
-	fmt.Println()
+	dbg.Println("compileGlobal")
+	dbg.Println(goGlobal)
+	dbg.Println()
 
 	// Locate output LLVM IR global.
 	global, ok := gen.globals[globalName]

@@ -3,29 +3,57 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"sort"
 	"strings"
 
 	"github.com/llir/llvm/ir"
+	"github.com/mewkiz/pkg/term"
 	"github.com/pkg/errors"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/ssa"
 	"golang.org/x/tools/go/ssa/ssautil"
 )
 
+var (
+	// dbg is a logger with the "sgt:" prefix which logs debug messages to
+	// standard error.
+	dbg = log.New(os.Stderr, term.CyanBold("sgt:")+" ", 0)
+	// warn is a logger with the "sgt:" prefix which logs warning messages to
+	// standard error.
+	warn = log.New(os.Stderr, term.RedBold("sgt:")+" ", 0)
+)
+
 func main() {
+	// Parse command line arguments.
+	var (
+		// Output path of LLVM IR module.
+		output string
+	)
+	flag.StringVar(&output, "o", "", "output path of LLVM IR module")
 	flag.Parse()
 	pkgPaths := flag.Args()
-	if err := sgt(pkgPaths); err != nil {
+
+	// Write to standard output or output file path if specified by -o flag.
+	w := os.Stdout
+	if len(output) > 0 {
+		f, err := os.Create(output)
+		if err != nil {
+			log.Fatalf("%+v", errors.WithStack(err))
+		}
+		defer f.Close()
+		w = f
+	}
+	if err := sgt(w, pkgPaths); err != nil {
 		log.Fatalf("%+v", err)
 	}
 }
 
 // sgt compiles the Go packages specified by package path patterns into LLVM IR
 // modules.
-func sgt(pkgPaths []string) error {
+func sgt(w io.Writer, pkgPaths []string) error {
 	// Parse and type-check Go packages.
 	cfg := &packages.Config{Mode: packages.LoadSyntax}
 	initial, err := packages.Load(cfg, pkgPaths...)
@@ -51,8 +79,11 @@ func sgt(pkgPaths []string) error {
 		if err != nil {
 			return errors.WithStack(err)
 		}
-		fmt.Printf("LLVM IR module of %q:\n", pkg.Pkg.Name())
-		fmt.Println(module)
+		dbg.Printf("LLVM IR module of %q:\n", pkg.Pkg.Name())
+		// TODO: add -o flag to specify output path.
+		if _, err := fmt.Fprintln(w, module); err != nil {
+			return errors.WithStack(err)
+		}
 	}
 	return nil
 }

@@ -123,9 +123,9 @@ func (gen *generator) llTypeFromName(typeName string) irtypes.Type {
 // compileType compiles the given Go SSA type into LLVM IR.
 func (gen *generator) compileType(typeName string, goType *ssa.Type) error {
 	// TODO: remove debug output.
-	fmt.Println("compileType")
-	fmt.Println(goType)
-	fmt.Println()
+	dbg.Println("compileType")
+	dbg.Println(goType)
+	dbg.Println()
 	return nil
 }
 
