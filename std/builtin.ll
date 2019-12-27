@@ -30,8 +30,7 @@ declare i64 @write(i64 %fd, i8* %buf, i64 %n)
 ;    useful for bootstrapping and debugging; it is not guaranteed to stay in the
 ;    language.
 define void @println(%string %s, ...) {
-	; TODO: handle for variadic arguments and include space between each
-	; argument.
+	; TODO: handle variadic arguments and include space between each argument.
 
 	; print string to standard output
 	%data = extractvalue %string %s, 0
