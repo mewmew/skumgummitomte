@@ -26,14 +26,32 @@ var (
 	warn = log.New(os.Stderr, term.RedBold("sgt:")+" ", 0)
 )
 
+const use = `
+Usage:
+
+	sgt [OPTION]... package...
+
+Flags:
+`
+
+func usage() {
+	fmt.Fprintln(os.Stderr, use[1:])
+	flag.PrintDefaults()
+}
+
 func main() {
 	// Parse command line arguments.
 	var (
 		// Output path of LLVM IR module.
 		output string
 	)
-	flag.StringVar(&output, "o", "", "output path of LLVM IR module")
+	flag.StringVar(&output, "o", "", "output path of LLVM IR module (default: standard output)")
+	flag.Usage = usage
 	flag.Parse()
+	if flag.NArg() == 0 {
+		flag.Usage()
+		os.Exit(1)
+	}
 	pkgPaths := flag.Args()
 
 	// Write to standard output or output file path if specified by -o flag.
@@ -46,6 +64,11 @@ func main() {
 		defer f.Close()
 		w = f
 	}
+
+	// Compile packages to LLVM IR modules.
+	// TODO: figure out a better way to specify output path, as we want each Go
+	// package to be written to a dedicated LLVM IR module. Perhaps specify
+	// output directory?
 	if err := sgt(w, pkgPaths); err != nil {
 		log.Fatalf("%+v", err)
 	}
