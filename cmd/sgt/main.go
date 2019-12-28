@@ -78,7 +78,7 @@ func main() {
 // modules.
 func sgt(w io.Writer, pkgPaths []string) error {
 	// Parse and type-check Go packages.
-	cfg := &packages.Config{Mode: packages.LoadSyntax}
+	cfg := &packages.Config{Mode: packages.LoadAllSyntax}
 	initial, err := packages.Load(cfg, pkgPaths...)
 	if err != nil {
 		return errors.WithStack(err)
@@ -88,23 +88,18 @@ func sgt(w io.Writer, pkgPaths []string) error {
 		return errors.Errorf("packages contain errors (%s)", strings.Join(pkgPaths, ", "))
 	}
 	// Create SSA packages of Go packages.
-	mode := ssa.PrintPackages | ssa.PrintFunctions
+	mode := ssa.PrintPackages | ssa.PrintFunctions | ssa.NaiveForm
 	prog, pkgs := ssautil.Packages(initial, mode)
-	_ = prog
 	// Build SSA code for all Go packages.
-	for _, pkg := range pkgs {
-		if pkg != nil {
-			pkg.Build()
-		}
-	}
+	prog.Build()
+	// Compile Go packages to LLVM IR.
 	for _, pkg := range pkgs {
 		module, err := compilePackage(pkg)
 		if err != nil {
 			return errors.WithStack(err)
 		}
 		dbg.Printf("LLVM IR module of %q:\n", pkg.Pkg.Name())
-		// TODO: add -o flag to specify output path.
-		if _, err := fmt.Fprintln(w, module); err != nil {
+		if _, err := module.WriteTo(w); err != nil {
 			return errors.WithStack(err)
 		}
 	}

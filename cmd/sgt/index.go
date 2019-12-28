@@ -32,6 +32,8 @@ func (gen *generator) indexNamedConst(constName string, goConst *ssa.NamedConst)
 	dbg.Println("indexNamedConst")
 	dbg.Println(goConst)
 	dbg.Println()
+
+	panic("not yet implemented")
 	return nil
 }
 
@@ -121,5 +123,7 @@ func (gen *generator) indexType(typeName string, goType *ssa.Type) error {
 	dbg.Println("indexType")
 	dbg.Println(goType)
 	dbg.Println()
+
+	panic("not yet implemented")
 	return nil
 }

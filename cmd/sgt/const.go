@@ -18,5 +18,7 @@ func (gen *generator) compileNamedConst(constName string, goConst *ssa.NamedCons
 		return errors.Errorf("unable to locate LLVM IR constant %q", constName)
 	}
 	_ = c
+
+	panic("not yet implemented")
 	return nil
 }
