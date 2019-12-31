@@ -103,9 +103,8 @@ func (m *Module) irValueFromGoConst(goConst *ssa.Const) irconstant.Constant {
 	switch goVal := goVal.(type) {
 	case bool:
 		return irconstant.NewBool(goVal)
-	// TODO: uncomment.
-	//case int64:
-	//	return irconstant.NewInt(typ.(*irtypes.IntType), goVal)
+	case int64:
+		return irconstant.NewInt(typ.(*irtypes.IntType), goVal)
 	case string:
 		return m.irValueFromGoStringLit(typ, goVal)
 	case nil:

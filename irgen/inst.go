@@ -4,11 +4,19 @@ import (
 	"fmt"
 	"go/token"
 
+	"github.com/llir/llvm/ir"
+	"github.com/llir/llvm/ir/metadata"
 	irtypes "github.com/llir/llvm/ir/types"
 	irvalue "github.com/llir/llvm/ir/value"
 	"github.com/pkg/errors"
 	"golang.org/x/tools/go/ssa"
 )
+
+// irValueInstruction is an LLVM IR value instruction.
+type irValueInstruction interface {
+	irvalue.Named
+	ir.Instruction
+}
 
 // ssaValueInstruction is a Go SSA value instruction.
 type ssaValueInstruction interface {
@@ -57,9 +65,9 @@ func (fn *Func) emitInst(goInst ssa.Instruction) error {
 func (fn *Func) emitValueInst(goInst ssaValueInstruction) error {
 	switch goInst := goInst.(type) {
 	case *ssa.Alloc:
-		panic("support for *ssa.Alloc not yet implemented")
+		return fn.emitAlloc(goInst)
 	case *ssa.BinOp:
-		panic("support for *ssa.BinOp not yet implemented")
+		return fn.emitBinOp(goInst)
 	case *ssa.Call:
 		return fn.emitCall(goInst)
 	case *ssa.ChangeInterface:
@@ -203,7 +211,126 @@ func (fn *Func) emitStore(goInst *ssa.Store) error {
 
 // === [ Value instructions ] ==================================================
 
-// --- [ unary operation instruction ] -----------------------------------------
+// --- [ alloc instruction ] ---------------------------------------------------
+
+// emitAlloc compiles the given Go SSA alloc instruction to corresponding LLVM
+// IR instructions, emitting to fn.
+func (fn *Func) emitAlloc(goInst *ssa.Alloc) error {
+	dbg.Println("emitAlloc")
+	if goInst.Heap {
+		//  Allocate space in the heap.
+		panic("support for heap allocated space of Go SSA alloc instruction not yet implemented")
+	}
+	typ := fn.m.irTypeFromGo(goInst.Type())
+	ptrType := typ.(*irtypes.PointerType)
+	inst := fn.cur.NewAlloca(ptrType.ElemType)
+	inst.SetName(goInst.Name())
+	fn.locals[goInst] = inst
+	// Add local variable name metadata attachment to alloca instruction.
+	if len(goInst.Comment) > 0 {
+		mdLocalName := &metadata.Attachment{
+			Name: "var_name",
+			Node: &metadata.Tuple{
+				MetadataID: -1, // metadata literal.
+				Fields: []metadata.Field{
+					&metadata.String{Value: goInst.Comment},
+				},
+			},
+		}
+		inst.Metadata = append(inst.Metadata, mdLocalName)
+	}
+	dbg.Println("   inst:", inst)
+	return nil
+}
+
+// --- [ binary operation instruction ] ----------------------------------------
+
+// emitBinOp compiles the given Go SSA binary operation instruction to
+// corresponding LLVM IR instructions, emitting to fn.
+func (fn *Func) emitBinOp(goInst *ssa.BinOp) error {
+	dbg.Println("emitBinOp")
+	dbg.Println("   op:", goInst.Op)
+	x := fn.useValue(goInst.X)
+	dbg.Println("   x:", x)
+	y := fn.useValue(goInst.Y)
+	dbg.Println("   y:", y)
+	var isInt, isFloat bool
+	switch x.Type().(type) {
+	case *irtypes.IntType:
+		isInt = true
+	case *irtypes.FloatType:
+		isFloat = true
+	default:
+		panic(fmt.Errorf("support for operand type %T of Go SSA binary operation instruction (%v) not yet implemented", x.Type(), goInst.Op))
+	}
+	var inst irValueInstruction
+	switch goInst.Op {
+	// ADD (+)
+	case token.ADD: // +
+		switch {
+		case isInt:
+			inst = fn.cur.NewAdd(x, y)
+		case isFloat:
+			inst = fn.cur.NewFAdd(x, y)
+		}
+	// SUB (-)
+	case token.SUB: // -
+		panic("support for Go SSA binary operation instruction token SUB (-) not yet implemented")
+	// MUL (*)
+	case token.MUL: // *
+		panic("support for Go SSA binary operation instruction token MUL (*) not yet implemented")
+	// QUO (/)
+	case token.QUO: // /
+		panic("support for Go SSA binary operation instruction token QUO (/) not yet implemented")
+	// REM (%)
+	case token.REM: // %
+		panic("support for Go SSA binary operation instruction token REM (%) not yet implemented")
+	// AND (&)
+	case token.AND: // &
+		panic("support for Go SSA binary operation instruction token AND (&) not yet implemented")
+	// OR (|)
+	case token.OR: // |
+		panic("support for Go SSA binary operation instruction token OR (|) not yet implemented")
+	// XOR (^)
+	case token.XOR: // ^
+		panic("support for Go SSA binary operation instruction token XOR (^) not yet implemented")
+	// SHL (<<)
+	case token.SHL: // <<
+		panic("support for Go SSA binary operation instruction token SHL (<<) not yet implemented")
+	// SHR (>>)
+	case token.SHR: // >>
+		panic("support for Go SSA binary operation instruction token SHR (>>) not yet implemented")
+	// AND_NOT (&^)
+	case token.AND_NOT: // &^
+		panic("support for Go SSA binary operation instruction token AND_NOT (&^) not yet implemented")
+	// EQL (==)
+	case token.EQL: // ==
+		panic("support for Go SSA binary operation instruction token EQL (==) not yet implemented")
+	// NEQ (!=)
+	case token.NEQ: // !=
+		panic("support for Go SSA binary operation instruction token NEQ (!=) not yet implemented")
+	// LSS (<)
+	case token.LSS: // <
+		panic("support for Go SSA binary operation instruction token LSS (<) not yet implemented")
+	// LEQ (<=)
+	case token.LEQ: // <=
+		panic("support for Go SSA binary operation instruction token LEQ (<=) not yet implemented")
+	// GTR (<)
+	case token.GTR: // <
+		panic("support for Go SSA binary operation instruction token GTR (<) not yet implemented")
+	// GEQ (>=)
+	case token.GEQ: // >=
+		panic("support for Go SSA binary operation instruction token GEQ (>=) not yet implemented")
+	default:
+		panic(fmt.Errorf("support for Go SSA binary operation instruction token %v not yet implemented", goInst.Op))
+	}
+	inst.SetName(goInst.Name())
+	fn.locals[goInst] = inst
+	dbg.Println("   inst:", inst.LLString())
+	return nil
+}
+
+// --- [ call instruction ] ----------------------------------------------------
 
 // emitCall compiles the given Go SSA call instruction to corresponding LLVM IR
 // instructions, emitting to fn.
@@ -222,10 +349,11 @@ func (fn *Func) emitCall(goInst *ssa.Call) error {
 		args = append(args, arg)
 	}
 	inst := fn.cur.NewCall(callee, args...)
-	dbg.Println("   inst:", inst.LLString())
 	if !irtypes.Equal(inst.Type(), irtypes.Void) {
+		inst.SetName(goInst.Name())
 		fn.locals[goInst] = inst
 	}
+	dbg.Println("   inst:", inst.LLString())
 	return nil
 }
 
@@ -240,29 +368,30 @@ func (fn *Func) emitUnOp(goInst *ssa.UnOp) error {
 	dbg.Println("   x:", x)
 	switch goInst.Op {
 	// Logical negation.
-	case token.NOT:
-		panic(fmt.Errorf("support for Go SSA unary operation instruction token NOT (!) not yet implemented"))
+	case token.NOT: // !
+		panic("support for Go SSA unary operation instruction token NOT (!) not yet implemented")
 	// Negation.
-	case token.SUB:
-		panic(fmt.Errorf("support for Go SSA unary operation instruction token SUB (-) not yet implemented"))
+	case token.SUB: // -
+		panic("support for Go SSA unary operation instruction token SUB (-) not yet implemented")
 	// Channel receive.
-	case token.ARROW:
+	case token.ARROW: // <-
 		if goInst.CommaOk {
 			// The result is a 2-tuple of the value and a boolean indicating the
 			// success of the receive. The components of the tuple are accessed
 			// using Extract.
 		}
-		panic(fmt.Errorf("support for Go SSA unary operation instruction token ARROW (<-) not yet implemented"))
+		panic("support for Go SSA unary operation instruction token ARROW (<-) not yet implemented")
 	// Pointer indirection (load).
-	case token.MUL:
+	case token.MUL: // *
 		elemType := x.Type().(*irtypes.PointerType).ElemType
 		inst := fn.cur.NewLoad(elemType, x)
-		dbg.Println("   inst:", inst.LLString())
+		inst.SetName(goInst.Name())
 		fn.locals[goInst] = inst
+		dbg.Println("   inst:", inst.LLString())
 		return nil
 	// Bitwise complement.
-	case token.XOR:
-		panic(fmt.Errorf("support for Go SSA unary operation instruction token XOR (^) not yet implemented"))
+	case token.XOR: // ^
+		panic("support for Go SSA unary operation instruction token XOR (^) not yet implemented")
 	default:
 		panic(fmt.Errorf("support for Go SSA unary operation instruction token %v not yet implemented", goInst.Op))
 	}
