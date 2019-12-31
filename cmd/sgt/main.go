@@ -6,11 +6,10 @@ import (
 	"io"
 	"log"
 	"os"
-	"sort"
 	"strings"
 
-	"github.com/llir/llvm/ir"
 	"github.com/mewkiz/pkg/term"
+	"github.com/mewmew/skumgummitomte/irgen"
 	"github.com/pkg/errors"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/ssa"
@@ -94,51 +93,14 @@ func sgt(w io.Writer, pkgPaths []string) error {
 	prog.Build()
 	// Compile Go packages to LLVM IR.
 	for _, pkg := range pkgs {
-		module, err := compilePackage(pkg)
+		m, err := irgen.CompilePackage(pkg)
 		if err != nil {
 			return errors.WithStack(err)
 		}
-		dbg.Printf("LLVM IR module of %q:\n", pkg.Pkg.Name())
-		if _, err := module.WriteTo(w); err != nil {
+		dbg.Printf("LLVM IR module of %q:", pkg.Pkg.Name())
+		if _, err := m.WriteTo(w); err != nil {
 			return errors.WithStack(err)
 		}
 	}
 	return nil
-}
-
-// compilePackage compiles the given Go package into an LLVM IR module.
-func compilePackage(pkg *ssa.Package) (*ir.Module, error) {
-	// TODO: remove debug output.
-	pkg.WriteTo(os.Stdout)
-
-	// Create LLVM IR generator for the given Go package.
-	gen := newGenerator(pkg)
-	// Initialize LLVM IR types corresponding to the predeclared Go types.
-	gen.initPredeclaredTypes()
-	// Initialize LLVM IR functions corresponding to the predeclared Go functions.
-	gen.initPredeclaredFuncs()
-
-	// Sort member names of SSA Go package.
-	memberNames := make([]string, 0, len(pkg.Members))
-	for memberName := range pkg.Members {
-		memberNames = append(memberNames, memberName)
-	}
-	sort.Strings(memberNames)
-
-	// Index SSA members of Go package.
-	for _, memberName := range memberNames {
-		member := pkg.Members[memberName]
-		if err := gen.indexMember(memberName, member); err != nil {
-			return nil, errors.WithStack(err)
-		}
-	}
-
-	// Compile SSA members of Go package.
-	for _, memberName := range memberNames {
-		member := pkg.Members[memberName]
-		if err := gen.compileMember(memberName, member); err != nil {
-			return nil, errors.WithStack(err)
-		}
-	}
-	return gen.module, nil
 }
