@@ -293,7 +293,7 @@ func (m *Module) emitType(goType *ssa.Type) error {
 	// doing a shallow copy instead of deep copy, as that should be enough to set
 	// the type definition name (with the risk of resetting the name of a
 	// previous type definition), but allows sharing the underlying types.
-	typ := m.copyType(underlying)
+	typ := copyTypeShallow(underlying)
 	typ.SetName(goType.Name())
 	dbg.Printf("   typ: %s = type %s", typ.String(), typ.LLString())
 	m.types[typ.Name()] = typ
@@ -303,62 +303,122 @@ func (m *Module) emitType(goType *ssa.Type) error {
 
 // --- [ copy ] ----------------------------------------------------------------
 
-// copyType returns an identical copy of the given LLVM IR type.
-func (m *Module) copyType(t irtypes.Type) irtypes.Type {
+// ~~~ [ shallow copy ] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// copyTypeShallow returns an identical copy of the given LLVM IR type.
+func copyTypeShallow(t irtypes.Type) irtypes.Type {
 	switch t := t.(type) {
 	case *irtypes.VoidType:
-		return m.copyVoidType(t)
+		u := &irtypes.VoidType{}
+		*u = *t
+		return u
 	case *irtypes.FuncType:
-		return m.copyFuncType(t)
+		u := &irtypes.FuncType{}
+		*u = *t
+		return u
 	case *irtypes.IntType:
-		return m.copyIntType(t)
+		u := &irtypes.IntType{}
+		*u = *t
+		return u
 	case *irtypes.FloatType:
-		return m.copyFloatType(t)
+		u := &irtypes.FloatType{}
+		*u = *t
+		return u
 	case *irtypes.MMXType:
-		return m.copyMMXType(t)
+		u := &irtypes.MMXType{}
+		*u = *t
+		return u
 	case *irtypes.PointerType:
-		return m.copyPointerType(t)
+		u := &irtypes.PointerType{}
+		*u = *t
+		return u
 	case *irtypes.VectorType:
-		return m.copyVectorType(t)
+		u := &irtypes.VectorType{}
+		*u = *t
+		return u
 	case *irtypes.LabelType:
-		return m.copyLabelType(t)
+		u := &irtypes.LabelType{}
+		*u = *t
+		return u
 	case *irtypes.TokenType:
-		return m.copyTokenType(t)
+		u := &irtypes.TokenType{}
+		*u = *t
+		return u
 	case *irtypes.MetadataType:
-		return m.copyMetadataType(t)
+		u := &irtypes.MetadataType{}
+		*u = *t
+		return u
 	case *irtypes.ArrayType:
-		return m.copyArrayType(t)
+		u := &irtypes.ArrayType{}
+		*u = *t
+		return u
 	case *irtypes.StructType:
-		return m.copyStructType(t)
+		u := &irtypes.StructType{}
+		*u = *t
+		return u
+	default:
+		panic(fmt.Errorf("support for %T not yet implemented", t))
+	}
+}
+
+// ~~~ [ deep copy ] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// copyType returns an identical copy of the given LLVM IR type.
+func copyType(t irtypes.Type) irtypes.Type {
+	switch t := t.(type) {
+	case *irtypes.VoidType:
+		return copyVoidType(t)
+	case *irtypes.FuncType:
+		return copyFuncType(t)
+	case *irtypes.IntType:
+		return copyIntType(t)
+	case *irtypes.FloatType:
+		return copyFloatType(t)
+	case *irtypes.MMXType:
+		return copyMMXType(t)
+	case *irtypes.PointerType:
+		return copyPointerType(t)
+	case *irtypes.VectorType:
+		return copyVectorType(t)
+	case *irtypes.LabelType:
+		return copyLabelType(t)
+	case *irtypes.TokenType:
+		return copyTokenType(t)
+	case *irtypes.MetadataType:
+		return copyMetadataType(t)
+	case *irtypes.ArrayType:
+		return copyArrayType(t)
+	case *irtypes.StructType:
+		return copyStructType(t)
 	default:
 		panic(fmt.Errorf("support for %T not yet implemented", t))
 	}
 }
 
 // copyVoidType returns an identical copy of the given LLVM IR type.
-func (m *Module) copyVoidType(t *irtypes.VoidType) *irtypes.VoidType {
+func copyVoidType(t *irtypes.VoidType) *irtypes.VoidType {
 	return &irtypes.VoidType{
 		TypeName: t.TypeName,
 	}
 }
 
 // copyFuncType returns an identical copy of the given LLVM IR type.
-func (m *Module) copyFuncType(t *irtypes.FuncType) *irtypes.FuncType {
+func copyFuncType(t *irtypes.FuncType) *irtypes.FuncType {
 	var params []irtypes.Type
 	for i := range t.Params {
-		param := m.copyType(t.Params[i])
+		param := copyType(t.Params[i])
 		params = append(params, param)
 	}
 	return &irtypes.FuncType{
 		TypeName: t.TypeName,
-		RetType:  m.copyType(t.RetType),
+		RetType:  copyType(t.RetType),
 		Params:   params,
 		Variadic: t.Variadic,
 	}
 }
 
 // copyIntType returns an identical copy of the given LLVM IR type.
-func (m *Module) copyIntType(t *irtypes.IntType) *irtypes.IntType {
+func copyIntType(t *irtypes.IntType) *irtypes.IntType {
 	return &irtypes.IntType{
 		TypeName: t.TypeName,
 		BitSize:  t.BitSize,
@@ -366,7 +426,7 @@ func (m *Module) copyIntType(t *irtypes.IntType) *irtypes.IntType {
 }
 
 // copyFloatType returns an identical copy of the given LLVM IR type.
-func (m *Module) copyFloatType(t *irtypes.FloatType) *irtypes.FloatType {
+func copyFloatType(t *irtypes.FloatType) *irtypes.FloatType {
 	return &irtypes.FloatType{
 		TypeName: t.TypeName,
 		Kind:     t.Kind,
@@ -374,66 +434,66 @@ func (m *Module) copyFloatType(t *irtypes.FloatType) *irtypes.FloatType {
 }
 
 // copyMMXType returns an identical copy of the given LLVM IR type.
-func (m *Module) copyMMXType(t *irtypes.MMXType) *irtypes.MMXType {
+func copyMMXType(t *irtypes.MMXType) *irtypes.MMXType {
 	return &irtypes.MMXType{
 		TypeName: t.TypeName,
 	}
 }
 
 // copyPointerType returns an identical copy of the given LLVM IR type.
-func (m *Module) copyPointerType(t *irtypes.PointerType) *irtypes.PointerType {
+func copyPointerType(t *irtypes.PointerType) *irtypes.PointerType {
 	return &irtypes.PointerType{
 		TypeName:  t.TypeName,
-		ElemType:  m.copyType(t.ElemType),
+		ElemType:  copyType(t.ElemType),
 		AddrSpace: t.AddrSpace,
 	}
 }
 
 // copyVectorType returns an identical copy of the given LLVM IR type.
-func (m *Module) copyVectorType(t *irtypes.VectorType) *irtypes.VectorType {
+func copyVectorType(t *irtypes.VectorType) *irtypes.VectorType {
 	return &irtypes.VectorType{
 		TypeName: t.TypeName,
 		Scalable: t.Scalable,
 		Len:      t.Len,
-		ElemType: m.copyType(t.ElemType),
+		ElemType: copyType(t.ElemType),
 	}
 }
 
 // copyLabelType returns an identical copy of the given LLVM IR type.
-func (m *Module) copyLabelType(t *irtypes.LabelType) *irtypes.LabelType {
+func copyLabelType(t *irtypes.LabelType) *irtypes.LabelType {
 	return &irtypes.LabelType{
 		TypeName: t.TypeName,
 	}
 }
 
 // copyTokenType returns an identical copy of the given LLVM IR type.
-func (m *Module) copyTokenType(t *irtypes.TokenType) *irtypes.TokenType {
+func copyTokenType(t *irtypes.TokenType) *irtypes.TokenType {
 	return &irtypes.TokenType{
 		TypeName: t.TypeName,
 	}
 }
 
 // copyMetadataType returns an identical copy of the given LLVM IR type.
-func (m *Module) copyMetadataType(t *irtypes.MetadataType) *irtypes.MetadataType {
+func copyMetadataType(t *irtypes.MetadataType) *irtypes.MetadataType {
 	return &irtypes.MetadataType{
 		TypeName: t.TypeName,
 	}
 }
 
 // copyArrayType returns an identical copy of the given LLVM IR type.
-func (m *Module) copyArrayType(t *irtypes.ArrayType) *irtypes.ArrayType {
+func copyArrayType(t *irtypes.ArrayType) *irtypes.ArrayType {
 	return &irtypes.ArrayType{
 		TypeName: t.TypeName,
 		Len:      t.Len,
-		ElemType: m.copyType(t.ElemType),
+		ElemType: copyType(t.ElemType),
 	}
 }
 
 // copyStructType returns an identical copy of the given LLVM IR type.
-func (m *Module) copyStructType(t *irtypes.StructType) *irtypes.StructType {
+func copyStructType(t *irtypes.StructType) *irtypes.StructType {
 	var fields []irtypes.Type
 	for i := range t.Fields {
-		field := m.copyType(t.Fields[i])
+		field := copyType(t.Fields[i])
 		fields = append(fields, field)
 	}
 	return &irtypes.StructType{
