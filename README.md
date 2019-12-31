@@ -11,7 +11,7 @@ go get github.com/mewmew/skumgummitomte/cmd/sgt
 ## Example
 
 
-Print "hello world":
+Compile and run [examples/hello/hello.go](examples/hello/hello.go).
 ```bash
 $ sgt -o hello.ll examples/hello/hello.go
 $ llvm-link -S -o main.ll hello.ll std/builtin.ll
@@ -21,7 +21,7 @@ $ lli main.ll
 # hello world
 ```
 
-Use of local variables:
+Compile and run [examples/locals/locals.go](examples/locals/locals.go).
 ```bash
 $ sgt -o locals.ll examples/locals/locals.go
 $ lli locals.ll ; echo $?
