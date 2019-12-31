@@ -86,6 +86,7 @@ func (m *Module) getFunc(goFunc *ssa.Function) *ir.Func {
 // indexFunc indexes the given Go SSA function, creating a corresponding LLVM IR
 // function, emitting to m.
 func (m *Module) indexFunc(goFunc *ssa.Function) error {
+	// TODO: use m.irTypeFromGo(goFunc.Signature) to simplify m.indexFunc.
 	// Convert Go function parameters to equivalent LLVM IR function parameters.
 	var params []*ir.Param
 	goParams := goFunc.Signature.Params()

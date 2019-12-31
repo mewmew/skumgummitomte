@@ -150,7 +150,7 @@ func (m *Module) irTypeFromGo(goType gotypes.Type) irtypes.Type {
 	case *gotypes.Pointer:
 		return m.irTypeFromGoPointerType(goType)
 	case *gotypes.Signature:
-		panic("support for *gotypes.Signature not yet implemented")
+		return m.irTypeFromGoSignatureType(goType)
 	case *gotypes.Slice:
 		return m.irTypeFromGoSliceType(goType)
 	case *gotypes.Struct:
@@ -227,6 +227,67 @@ func (m *Module) irTypeFromGoBasicType(goType *gotypes.Basic) irtypes.Type {
 	return m.irTypeFromName(typeName)
 }
 
+// ~~~ [ pointer type ] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// irTypeFromGoPointerType returns the LLVM IR type corresponding to the given
+// Go pointer type, emitting to m.
+func (m *Module) irTypeFromGoPointerType(goType *gotypes.Pointer) *irtypes.PointerType {
+	elemType := m.irTypeFromGo(goType.Elem())
+	return irtypes.NewPointer(elemType)
+}
+
+// ~~~ [ function signature type ] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// irTypeFromGoSignatureType returns the LLVM IR type corresponding to the given
+// Go function signature type, emitting to m.
+func (m *Module) irTypeFromGoSignatureType(goType *gotypes.Signature) *irtypes.FuncType {
+	if goType.Recv() != nil {
+		// TODO: add support for methods.
+		panic("support for methods in Go function signature type not yet implemented")
+	}
+	// Convert Go function parameters to equivalent LLVM IR function parameter
+	// types.
+	var paramTypes []irtypes.Type
+	goParams := goType.Params()
+	for i := 0; i < goParams.Len(); i++ {
+		goParam := goParams.At(i)
+		paramName := goParam.Name()
+		_ = paramName // TODO: add parameter name as metadata?
+		paramType := m.irTypeFromGo(goParam.Type())
+		paramTypes = append(paramTypes, paramType)
+	}
+	// Convert Go function return types to equivalent LLVM IR function return
+	// types.
+	var resultTypes []irtypes.Type
+	goResults := goType.Results()
+	for i := 0; i < goResults.Len(); i++ {
+		goResult := goResults.At(i)
+		resultName := goResult.Name()
+		// TODO: add resultName as field name of (custom) result structure type.
+		_ = resultName
+		resultType := m.irTypeFromGo(goResult.Type())
+		resultTypes = append(resultTypes, resultType)
+	}
+	// Convert multiple return types a single return type by creating a structure
+	// type with one field per return type.
+	var retType irtypes.Type
+	switch len(resultTypes) {
+	// void return.
+	case 0:
+		retType = irtypes.Void
+	// single return type.
+	case 1:
+		retType = resultTypes[0]
+	// multiple return types.
+	default:
+		retType = irtypes.NewStruct(resultTypes...)
+	}
+	// Generate LLVM IR function signature type.
+	sig := irtypes.NewFunc(retType, paramTypes...)
+	sig.Variadic = goType.Variadic()
+	return sig
+}
+
 // ~~~ [ slice type ] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 // irTypeFromGoSliceType returns the LLVM IR type corresponding to the given Go
@@ -259,15 +320,6 @@ func (m *Module) irTypeFromGoStructType(goType *gotypes.Struct) *irtypes.StructT
 		fields = append(fields, field)
 	}
 	return irtypes.NewStruct(fields...)
-}
-
-// ~~~ [ pointer type ] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-// irTypeFromGoPointerType returns the LLVM IR type corresponding to the given
-// Go pointer type, emitting to m.
-func (m *Module) irTypeFromGoPointerType(goType *gotypes.Pointer) *irtypes.PointerType {
-	elemType := m.irTypeFromGo(goType.Elem())
-	return irtypes.NewPointer(elemType)
 }
 
 // --- [ index ] ---------------------------------------------------------------
