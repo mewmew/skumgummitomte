@@ -240,7 +240,7 @@ func (m *Module) irTypeFromGoPointerType(goType *gotypes.Pointer) *irtypes.Point
 
 // irTypeFromGoSignatureType returns the LLVM IR type corresponding to the given
 // Go function signature type, emitting to m.
-func (m *Module) irTypeFromGoSignatureType(goType *gotypes.Signature) *irtypes.FuncType {
+func (m *Module) irTypeFromGoSignatureType(goType *gotypes.Signature) *irtypes.PointerType { //*irtypes.FuncType {
 	if goType.Recv() != nil {
 		// TODO: add support for methods.
 		panic("support for methods in Go function signature type not yet implemented")
@@ -285,7 +285,10 @@ func (m *Module) irTypeFromGoSignatureType(goType *gotypes.Signature) *irtypes.F
 	// Generate LLVM IR function signature type.
 	sig := irtypes.NewFunc(retType, paramTypes...)
 	sig.Variadic = goType.Variadic()
-	return sig
+	// TODO: consider how to convert Go function signature types, in LLVM IR,
+	// function values when used as callees are of type pointer to function
+	// signature type.
+	return irtypes.NewPointer(sig)
 }
 
 // ~~~ [ slice type ] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

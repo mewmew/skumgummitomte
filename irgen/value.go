@@ -69,7 +69,7 @@ func (m *Module) irValueFromGo(goValue ssa.Value) irvalue.Value {
 	case *ssa.Const:
 		return m.irValueFromGoConst(goValue)
 	case *ssa.Function:
-		panic("support for *ssa.Function not yet implemented")
+		return m.irValueFromGoFunc(goValue)
 	case *ssa.Global:
 		panic("support for *ssa.Global not yet implemented")
 	default:
@@ -144,4 +144,13 @@ func (m *Module) irValueFromGoStringLit(typ irtypes.Type, s string) irconstant.C
 	default:
 		panic(fmt.Errorf("support for converting Go string literal to LLVM IR constant with LLVM IR type %T (%q) not yet implemented", typ, typ.Name()))
 	}
+}
+
+// --- [ function ] ------------------------------------------------------------
+
+// irValueFromGoFunc returns the LLVM IR function corresponding to the given Go
+// SSA function, emitting to m.
+func (m *Module) irValueFromGoFunc(goFunc *ssa.Function) *ir.Func {
+	dbg.Println("irValueFromGoFunc")
+	return m.getFunc(goFunc)
 }

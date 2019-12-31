@@ -128,6 +128,13 @@ func (m *Module) indexFunc(goFunc *ssa.Function) error {
 	f.Sig.Variadic = goFunc.Signature.Variadic()
 	// Index LLVM IR function declaration.
 	m.globals[goFunc] = f
+
+	// Index anonymous functions declared in fn.
+	for _, goAnonFunc := range goFunc.AnonFuncs {
+		if err := m.indexFunc(goAnonFunc); err != nil {
+			return errors.WithStack(err)
+		}
+	}
 	return nil
 }
 
@@ -159,6 +166,13 @@ func (m *Module) emitFunc(goFunc *ssa.Function) error {
 	// TODO: sort blocks by dom.
 	for _, goBlock := range goFunc.Blocks {
 		if err := fn.emitBlock(goBlock); err != nil {
+			return errors.WithStack(err)
+		}
+	}
+
+	// Compile anonymous functions declared in fn.
+	for _, goAnonFunc := range goFunc.AnonFuncs {
+		if err := m.emitFunc(goAnonFunc); err != nil {
 			return errors.WithStack(err)
 		}
 	}
