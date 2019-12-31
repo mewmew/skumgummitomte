@@ -5,6 +5,7 @@ import (
 	"go/token"
 
 	"github.com/llir/llvm/ir"
+	irconstant "github.com/llir/llvm/ir/constant"
 	"github.com/llir/llvm/ir/metadata"
 	irtypes "github.com/llir/llvm/ir/types"
 	irvalue "github.com/llir/llvm/ir/value"
@@ -240,6 +241,10 @@ func (fn *Func) emitAlloc(goInst *ssa.Alloc) error {
 		inst.Metadata = append(inst.Metadata, mdLocalName)
 	}
 	dbg.Println("   inst:", inst)
+	// The space of a stack allocated local variable is re-initialized to zero
+	// each time it is executed.
+	zero := irconstant.NewZeroInitializer(ptrType.ElemType)
+	fn.cur.NewStore(zero, inst)
 	return nil
 }
 
