@@ -29,3 +29,13 @@ $ lli locals.ll ; echo $?
 #
 # 42
 ```
+
+Compile and run [examples/bror/bror.go](examples/bror/bror.go).
+```bash
+$ sgt -o bror.ll examples/bror/bror.go
+$ llvm-link -S -o main.ll bror.ll std/builtin.ll
+$ lli main.ll
+# Output:
+#
+# lol
+```
