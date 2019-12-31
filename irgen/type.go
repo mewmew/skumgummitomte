@@ -118,10 +118,9 @@ func (m *Module) irTypeFromName(typeName string) irtypes.Type {
 	if typ, ok := m.predeclaredTypes[typeName]; ok {
 		return typ
 	}
-	// TODO: uncomment.
-	//if typ, ok := m.types[typeName]; ok {
-	//	return typ
-	//}
+	if typ, ok := m.types[typeName]; ok {
+		return typ
+	}
 	panic(fmt.Errorf("unable to locate LLVM IR type of Go type with name %q", typeName))
 }
 
@@ -147,21 +146,23 @@ func (m *Module) irTypeFromGo(goType gotypes.Type) irtypes.Type {
 	case *gotypes.Map:
 		panic("support for *gotypes.Map not yet implemented")
 	case *gotypes.Named:
-		panic("support for *gotypes.Named not yet implemented")
+		return m.irTypeFromName(goType.Obj().Id())
 	case *gotypes.Pointer:
 		return m.irTypeFromGoPointerType(goType)
 	case *gotypes.Signature:
 		panic("support for *gotypes.Signature not yet implemented")
 	case *gotypes.Slice:
-		panic("support for *gotypes.Slice not yet implemented")
+		return m.irTypeFromGoSliceType(goType)
 	case *gotypes.Struct:
-		panic("support for *gotypes.Struct not yet implemented")
+		return m.irTypeFromGoStructType(goType)
 	case *gotypes.Tuple:
 		panic("support for *gotypes.Tuple not yet implemented")
 	default:
 		panic(fmt.Errorf("support for Go type %T not yet implemented", goType))
 	}
 }
+
+// ~~~ [ basic type ] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 // irTypeFromGoBasicType returns the LLVM IR type corresponding to the given Go
 // basic type, emitting to m.
@@ -226,6 +227,42 @@ func (m *Module) irTypeFromGoBasicType(goType *gotypes.Basic) irtypes.Type {
 	return m.irTypeFromName(typeName)
 }
 
+// ~~~ [ slice type ] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// irTypeFromGoSliceType returns the LLVM IR type corresponding to the given Go
+// slice type, emitting to m.
+func (m *Module) irTypeFromGoSliceType(goType *gotypes.Slice) *irtypes.StructType {
+	elemType := m.irTypeFromGo(goType.Elem())
+	data := irtypes.NewPointer(elemType)
+	length := m.irTypeFromName("int")
+	capacity := m.irTypeFromName("int")
+	return irtypes.NewStruct(data, length, capacity)
+}
+
+// ~~~ [ struct type ] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// irTypeFromGoStructType returns the LLVM IR type corresponding to the given Go
+// struct type, emitting to m.
+func (m *Module) irTypeFromGoStructType(goType *gotypes.Struct) *irtypes.StructType {
+	var fields []irtypes.Type
+	for i := 0; i < goType.NumFields(); i++ {
+		goField := goType.Field(i)
+		if goField.Embedded() {
+			// TODO: add support for embedded types.
+			panic(fmt.Errorf("support for embedded types not yet implemented; struct type has embedded field %q", goField.Name()))
+		}
+		// TODO: add custom LLVM IR struct type which retains the names of struct
+		// fields.
+		name := goField.Name()
+		_ = name
+		field := m.irTypeFromGo(goField.Type())
+		fields = append(fields, field)
+	}
+	return irtypes.NewStruct(fields...)
+}
+
+// ~~~ [ pointer type ] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 // irTypeFromGoPointerType returns the LLVM IR type corresponding to the given
 // Go pointer type, emitting to m.
 func (m *Module) irTypeFromGoPointerType(goType *gotypes.Pointer) *irtypes.PointerType {
@@ -235,6 +272,8 @@ func (m *Module) irTypeFromGoPointerType(goType *gotypes.Pointer) *irtypes.Point
 
 // --- [ index ] ---------------------------------------------------------------
 
+// TODO: remove indexType?
+
 // indexType indexes the given Go SSA type, creating a corresponding LLVM IR
 // type, emitting to m.
 func (m *Module) indexType(goType *ssa.Type) error {
@@ -242,3 +281,165 @@ func (m *Module) indexType(goType *ssa.Type) error {
 }
 
 // --- [ compile ] -------------------------------------------------------------
+
+// emitType compiles the given Go SSA type definition to corresponding LLVM IR,
+// emitting to m.
+func (m *Module) emitType(goType *ssa.Type) error {
+	dbg.Println("emitType")
+	underlying := m.irTypeFromGo(goType.Type().Underlying())
+	// Perform a deep copy of the underlying type. Otherwise, we may reset the
+	// name of a previously named type.
+	// TODO: only deep copy underlying type if it is a named type. Also, consider
+	// doing a shallow copy instead of deep copy, as that should be enough to set
+	// the type definition name (with the risk of resetting the name of a
+	// previous type definition), but allows sharing the underlying types.
+	typ := m.copyType(underlying)
+	typ.SetName(goType.Name())
+	dbg.Printf("   typ: %s = type %s", typ.String(), typ.LLString())
+	m.types[typ.Name()] = typ
+	m.TypeDefs = append(m.TypeDefs, typ)
+	return nil
+}
+
+// --- [ copy ] ----------------------------------------------------------------
+
+// copyType returns an identical copy of the given LLVM IR type.
+func (m *Module) copyType(t irtypes.Type) irtypes.Type {
+	switch t := t.(type) {
+	case *irtypes.VoidType:
+		return m.copyVoidType(t)
+	case *irtypes.FuncType:
+		return m.copyFuncType(t)
+	case *irtypes.IntType:
+		return m.copyIntType(t)
+	case *irtypes.FloatType:
+		return m.copyFloatType(t)
+	case *irtypes.MMXType:
+		return m.copyMMXType(t)
+	case *irtypes.PointerType:
+		return m.copyPointerType(t)
+	case *irtypes.VectorType:
+		return m.copyVectorType(t)
+	case *irtypes.LabelType:
+		return m.copyLabelType(t)
+	case *irtypes.TokenType:
+		return m.copyTokenType(t)
+	case *irtypes.MetadataType:
+		return m.copyMetadataType(t)
+	case *irtypes.ArrayType:
+		return m.copyArrayType(t)
+	case *irtypes.StructType:
+		return m.copyStructType(t)
+	default:
+		panic(fmt.Errorf("support for %T not yet implemented", t))
+	}
+}
+
+// copyVoidType returns an identical copy of the given LLVM IR type.
+func (m *Module) copyVoidType(t *irtypes.VoidType) *irtypes.VoidType {
+	return &irtypes.VoidType{
+		TypeName: t.TypeName,
+	}
+}
+
+// copyFuncType returns an identical copy of the given LLVM IR type.
+func (m *Module) copyFuncType(t *irtypes.FuncType) *irtypes.FuncType {
+	var params []irtypes.Type
+	for i := range t.Params {
+		param := m.copyType(t.Params[i])
+		params = append(params, param)
+	}
+	return &irtypes.FuncType{
+		TypeName: t.TypeName,
+		RetType:  m.copyType(t.RetType),
+		Params:   params,
+		Variadic: t.Variadic,
+	}
+}
+
+// copyIntType returns an identical copy of the given LLVM IR type.
+func (m *Module) copyIntType(t *irtypes.IntType) *irtypes.IntType {
+	return &irtypes.IntType{
+		TypeName: t.TypeName,
+		BitSize:  t.BitSize,
+	}
+}
+
+// copyFloatType returns an identical copy of the given LLVM IR type.
+func (m *Module) copyFloatType(t *irtypes.FloatType) *irtypes.FloatType {
+	return &irtypes.FloatType{
+		TypeName: t.TypeName,
+		Kind:     t.Kind,
+	}
+}
+
+// copyMMXType returns an identical copy of the given LLVM IR type.
+func (m *Module) copyMMXType(t *irtypes.MMXType) *irtypes.MMXType {
+	return &irtypes.MMXType{
+		TypeName: t.TypeName,
+	}
+}
+
+// copyPointerType returns an identical copy of the given LLVM IR type.
+func (m *Module) copyPointerType(t *irtypes.PointerType) *irtypes.PointerType {
+	return &irtypes.PointerType{
+		TypeName:  t.TypeName,
+		ElemType:  m.copyType(t.ElemType),
+		AddrSpace: t.AddrSpace,
+	}
+}
+
+// copyVectorType returns an identical copy of the given LLVM IR type.
+func (m *Module) copyVectorType(t *irtypes.VectorType) *irtypes.VectorType {
+	return &irtypes.VectorType{
+		TypeName: t.TypeName,
+		Scalable: t.Scalable,
+		Len:      t.Len,
+		ElemType: m.copyType(t.ElemType),
+	}
+}
+
+// copyLabelType returns an identical copy of the given LLVM IR type.
+func (m *Module) copyLabelType(t *irtypes.LabelType) *irtypes.LabelType {
+	return &irtypes.LabelType{
+		TypeName: t.TypeName,
+	}
+}
+
+// copyTokenType returns an identical copy of the given LLVM IR type.
+func (m *Module) copyTokenType(t *irtypes.TokenType) *irtypes.TokenType {
+	return &irtypes.TokenType{
+		TypeName: t.TypeName,
+	}
+}
+
+// copyMetadataType returns an identical copy of the given LLVM IR type.
+func (m *Module) copyMetadataType(t *irtypes.MetadataType) *irtypes.MetadataType {
+	return &irtypes.MetadataType{
+		TypeName: t.TypeName,
+	}
+}
+
+// copyArrayType returns an identical copy of the given LLVM IR type.
+func (m *Module) copyArrayType(t *irtypes.ArrayType) *irtypes.ArrayType {
+	return &irtypes.ArrayType{
+		TypeName: t.TypeName,
+		Len:      t.Len,
+		ElemType: m.copyType(t.ElemType),
+	}
+}
+
+// copyStructType returns an identical copy of the given LLVM IR type.
+func (m *Module) copyStructType(t *irtypes.StructType) *irtypes.StructType {
+	var fields []irtypes.Type
+	for i := range t.Fields {
+		field := m.copyType(t.Fields[i])
+		fields = append(fields, field)
+	}
+	return &irtypes.StructType{
+		TypeName: t.TypeName,
+		Packed:   t.Packed,
+		Fields:   fields,
+		Opaque:   t.Opaque,
+	}
+}

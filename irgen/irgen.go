@@ -69,7 +69,10 @@ func (m *Module) indexMember(member ssa.Member) error {
 	case *ssa.Function:
 		return m.indexFunc(member)
 	case *ssa.Type:
-		return m.indexType(member)
+		// TODO: evaluate if we need to index type definitions or not before
+		// resolving them. What cycles may exist?
+		//return m.indexType(member)
+		return nil // ignore indexing *ssa.Type for now
 	default:
 		panic(fmt.Errorf("support for SSA member %T (%q) not yet implemented", member, member.Name()))
 	}
@@ -89,9 +92,8 @@ func (m *Module) emitMember(member ssa.Member) error {
 		return m.emitGlobal(member)
 	case *ssa.Function:
 		return m.emitFunc(member)
-	// TODO: uncomment.
-	//case *ssa.Type:
-	//	return m.emitType(member)
+	case *ssa.Type:
+		return m.emitType(member)
 	default:
 		panic(fmt.Errorf("support for SSA member %T (%q) not yet implemented", member, member.Name()))
 	}

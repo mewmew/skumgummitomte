@@ -19,6 +19,9 @@ type Module struct {
 	// Maps from global Go SSA value to corresponding LLVM IR value in the LLVM
 	// IR module being generated.
 	globals map[ssa.Value]irvalue.Value
+	// Maps from Go SSA type name to corresponding LLVM IR type definition in the
+	// LLVM IR module being generated.
+	types map[string]irtypes.Type
 	// Map from predeclared Go type name to LLVM IR type.
 	predeclaredTypes map[string]irtypes.Type
 	// Map from predeclared Go function name to LLVM IR function.
@@ -41,6 +44,7 @@ func NewModule(goPkg *ssa.Package) *Module {
 		Module:           ir.NewModule(),
 		goPkg:            goPkg,
 		globals:          make(map[ssa.Value]irvalue.Value),
+		types:            make(map[string]irtypes.Type),
 		predeclaredTypes: make(map[string]irtypes.Type),
 		predeclaredFuncs: make(map[string]*ir.Func),
 		strings:          make(map[string]*ir.Global),
