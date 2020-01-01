@@ -39,3 +39,8 @@ $ lli main.ll
 #
 # lol
 ```
+
+Compile [examples/types/types.go](examples/types/types.go).
+```bash
+$ sgt -o types.ll examples/types/types.go
+```
