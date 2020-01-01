@@ -44,3 +44,14 @@ Compile [examples/types/types.go](examples/types/types.go).
 ```bash
 $ sgt -o types.ll examples/types/types.go
 ```
+
+Compile and run [examples/methods/methods.go](examples/methods/methods.go).
+```bash
+$ sgt -o methods.ll examples/methods/methods.go
+$ llvm-link -S -o main.ll methods.ll std/builtin.ll
+$ lli main.ll
+# Output:
+#
+# T.M1
+# T.M2
+```
