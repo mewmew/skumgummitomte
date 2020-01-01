@@ -6,6 +6,7 @@ import (
 
 	"github.com/llir/llvm/ir"
 	irconstant "github.com/llir/llvm/ir/constant"
+	irenum "github.com/llir/llvm/ir/enum"
 	"github.com/llir/llvm/ir/metadata"
 	irtypes "github.com/llir/llvm/ir/types"
 	irvalue "github.com/llir/llvm/ir/value"
@@ -219,8 +220,8 @@ func (fn *Func) emitStore(goInst *ssa.Store) error {
 func (fn *Func) emitAlloc(goInst *ssa.Alloc) error {
 	dbg.Println("emitAlloc")
 	if goInst.Heap {
-		//  Allocate space in the heap.
-		panic("support for heap allocated space of Go SSA alloc instruction not yet implemented")
+		// Allocate space in the heap.
+		return fn.emitNew(goInst)
 	}
 	typ := fn.m.irTypeFromGo(goInst.Type())
 	ptrType := typ.(*irtypes.PointerType)
@@ -245,6 +246,73 @@ func (fn *Func) emitAlloc(goInst *ssa.Alloc) error {
 	// each time it is executed.
 	zero := irconstant.NewZeroInitializer(ptrType.ElemType)
 	fn.cur.NewStore(zero, inst)
+	return nil
+}
+
+// ~~~ [ new - heap alloc instruction ] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// emitNew compiles the given Go SSA heap alloc instruction to corresponding
+// LLVM IR instructions, emitting to fn.
+func (fn *Func) emitNew(goInst *ssa.Alloc) error {
+	dbg.Println("emitNew")
+	typ := fn.m.irTypeFromGo(goInst.Type())
+	ptrType := typ.(*irtypes.PointerType)
+	// Define `new(T)` function if not present.
+	typeName := ptrType.ElemType.Name() // TODO: check that builtin type names (e.g. `int32`) are currently handled.
+	newFuncName := fmt.Sprintf("new(%s)", typeName)
+	newFunc, ok := fn.m.predeclaredFuncs[newFuncName]
+	if !ok {
+		retType := ptrType
+		newFunc = fn.m.Module.NewFunc(newFuncName, retType)
+		entry := newFunc.NewBlock("entry")
+		allocaInst := entry.NewAlloca(ptrType.ElemType)
+		objectsizeFunc := fn.m.getPredeclaredFunc("llvm.objectsize.i64")
+		bitCastInst := entry.NewBitCast(allocaInst, irtypes.I8Ptr)
+		objectsizeArgs := []irvalue.Value{
+			bitCastInst,      // object
+			irconstant.False, // min
+			irconstant.False, // nullunknown
+			irconstant.False, // dynamic
+		}
+		size := entry.NewCall(objectsizeFunc, objectsizeArgs...)
+		size.SetName("size")
+		cond := entry.NewICmp(irenum.IPredNE, size, irconstant.NewInt(irtypes.I64, -1))
+		success := newFunc.NewBlock("success")
+		fail := newFunc.NewBlock("fail")
+		entry.NewCondBr(cond, success, fail)
+		// Generate `success` basic block.
+		callocFunc := fn.m.getPredeclaredFunc("calloc") // using calloc to zero initialize
+		args := []irvalue.Value{
+			irconstant.NewInt(irtypes.I64, 1),
+			size,
+		}
+		callInst := success.NewCall(callocFunc, args...)
+		result := success.NewBitCast(callInst, ptrType)
+		success.NewRet(result)
+		// Generate `fail` basic block.
+		// TODO: panic with "unable to get size of type T" error message.
+		fail.NewUnreachable()
+		// Add synthesized `new(T)` function to predeclared functions.
+		fn.m.predeclaredFuncs[newFunc.Name()] = newFunc
+	}
+	// Invoke new(T).
+	inst := fn.cur.NewCall(newFunc)
+	inst.SetName(goInst.Name())
+	fn.locals[goInst] = inst
+	// Add local variable name metadata attachment to alloca instruction.
+	if len(goInst.Comment) > 0 {
+		mdLocalName := &metadata.Attachment{
+			Name: "var_name",
+			Node: &metadata.Tuple{
+				MetadataID: -1, // metadata literal.
+				Fields: []metadata.Field{
+					&metadata.String{Value: goInst.Comment},
+				},
+			},
+		}
+		inst.Metadata = append(inst.Metadata, mdLocalName)
+	}
+	dbg.Println("   inst:", inst)
 	return nil
 }
 
@@ -347,6 +415,7 @@ func (fn *Func) emitCall(goInst *ssa.Call) error {
 		// Receiver mode.
 		panic("support for receiver mode (method invocation) of Go SSA call instruction not yet implemented")
 	}
+	dbg.Println("   callee:", callee.Ident())
 	// Function arguments.
 	var args []irvalue.Value
 	for _, goArg := range goInst.Call.Args {

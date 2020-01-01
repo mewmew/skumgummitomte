@@ -56,6 +56,8 @@ func (m *Module) NewFunc(goFunc *ssa.Function) *Func {
 //
 // Pre-condition: initialize predeclared types.
 func (m *Module) initPredeclaredFuncs() {
+	// --- [ builtin Go functions ] ---
+
 	// println.
 	{
 		retType := irtypes.Void
@@ -64,6 +66,9 @@ func (m *Module) initPredeclaredFuncs() {
 		printlnFunc.Sig.Variadic = true
 		m.predeclaredFuncs[printlnFunc.Name()] = printlnFunc
 	}
+
+	// --- [ needed by Go SSA code ] ---
+
 	// wrapnilchk returns ptr if non-nil, panics otherwise.
 	// (For use in indirection wrappers.)
 	//
@@ -78,6 +83,34 @@ func (m *Module) initPredeclaredFuncs() {
 		}
 		wrapnilchkFunc := m.Module.NewFunc("ssa:wrapnilchk", retType, params...)
 		m.predeclaredFuncs[wrapnilchkFunc.Name()] = wrapnilchkFunc
+	}
+
+	// --- [ dependencies of new(T) ] ---
+
+	// calloc.
+	{
+		// void *calloc(size_t nmemb, size_t size)
+		retType := irtypes.I8Ptr // generic pointer type.
+		params := []*ir.Param{
+			ir.NewParam("nmemb", m.irTypeFromName("uint64")),
+			ir.NewParam("size", m.irTypeFromName("uint64")),
+		}
+		callocFunc := m.Module.NewFunc("calloc", retType, params...)
+		m.predeclaredFuncs[callocFunc.Name()] = callocFunc
+	}
+
+	// llvm.objectsize.i64
+	{
+		// declare i64 @llvm.objectsize.i64(i8* <object>, i1 <min>, i1 <nullunknown>, i1 <dynamic>)
+		retType := irtypes.I64
+		params := []*ir.Param{
+			ir.NewParam("object", irtypes.I8Ptr),
+			ir.NewParam("min", irtypes.I1),
+			ir.NewParam("nullunknown", irtypes.I1),
+			ir.NewParam("dynamic", irtypes.I1),
+		}
+		objectsizeFunc := m.Module.NewFunc("llvm.objectsize.i64", retType, params...)
+		m.predeclaredFuncs[objectsizeFunc.Name()] = objectsizeFunc
 	}
 }
 
@@ -96,6 +129,18 @@ func (m *Module) getFunc(goFunc *ssa.Function) *ir.Func {
 		panic(fmt.Errorf("unable to locate indexed LLVM IR function declaration of Go SSA function %q", m.funcName(goFunc)))
 	}
 	return global.(*ir.Func)
+}
+
+// getPredeclaredFunc returns the predeclared LLVM IR function of the given
+// function name.
+//
+// Pre-condition: initialize predeclared functions of m.
+func (m *Module) getPredeclaredFunc(funcName string) *ir.Func {
+	predeclaredFunc, ok := m.predeclaredFuncs[funcName]
+	if !ok {
+		panic(fmt.Errorf("unable to locate predeclared LLVM IR function %q", funcName))
+	}
+	return predeclaredFunc
 }
 
 // --- [ index ] ---------------------------------------------------------------
@@ -164,8 +209,10 @@ func (m *Module) emitFunc(goFunc *ssa.Function) error {
 	if len(goFunc.Blocks) == 0 {
 		return nil
 	}
+	dbg.Println("emitFunc")
 	// Index Go SSA function parameters (including receiver of methods).
 	fn := m.NewFunc(goFunc)
+	dbg.Println("   funcName:", fn.Func.Name())
 	for i, goParam := range goFunc.Params {
 		param := fn.Func.Params[i]
 		fn.locals[goParam] = param
