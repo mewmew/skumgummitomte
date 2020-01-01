@@ -30,10 +30,10 @@ $ lli locals.ll ; echo $?
 # 42
 ```
 
-Compile and run [examples/bror/bror.go](examples/bror/bror.go).
+Compile and run [examples/closures/closures.go](examples/closures/closures.go).
 ```bash
-$ sgt -o bror.ll examples/bror/bror.go
-$ llvm-link -S -o main.ll bror.ll std/builtin.ll
+$ sgt -o closures.ll examples/closures/closures.go
+$ llvm-link -S -o main.ll closures.ll std/builtin.ll
 $ lli main.ll
 # Output:
 #
