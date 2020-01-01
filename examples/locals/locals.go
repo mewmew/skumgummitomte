@@ -1,5 +1,3 @@
-//+build ignore
-
 package p
 
 // Note: to allow the use of a function signature with `int` return type for the

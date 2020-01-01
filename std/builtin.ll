@@ -41,3 +41,20 @@ define void @println(%string %s, ...) {
 	call i64 @write(i64 0, i8* %newline, i64 1)
 	ret void
 }
+
+; wrapnilchk returns ptr if non-nil, panics otherwise.
+; (For use in indirection wrappers.)
+;
+;    func ssa:wrapnilchk(ptr *T, recvType, methodName string) *T
+define i8* @"ssa:wrapnilchk"(i8* %ptr, %string %recvType, %string %methodName) {
+	%ptr_val = ptrtoint i8* %ptr to %uintptr
+	%is_null = icmp eq %uintptr %ptr_val, 0
+	br i1 %is_null, label %success, label %fail
+
+success:
+	ret i8* %ptr
+
+fail:
+	; TODO: add panic message with "recvType.methodName".
+	unreachable
+}

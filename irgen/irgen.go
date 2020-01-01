@@ -11,6 +11,7 @@ import (
 	"github.com/mewkiz/pkg/term"
 	"github.com/pkg/errors"
 	"golang.org/x/tools/go/ssa"
+	"golang.org/x/tools/go/ssa/ssautil"
 )
 
 var (
@@ -33,23 +34,67 @@ func CompilePackage(goPkg *ssa.Package) (*ir.Module, error) {
 	// Initialize LLVM IR functions corresponding to the predeclared Go
 	// functions.
 	m.initPredeclaredFuncs()
-	// Sort member names of SSA Go package.
+	// Sort type definitions of Go SSA package.
+	var goTypeDefs []*ssa.Type
+	for _, goMember := range goPkg.Members {
+		goTypeDef, ok := goMember.(*ssa.Type)
+		if !ok {
+			continue
+		}
+		goTypeDefs = append(goTypeDefs, goTypeDef)
+	}
+	sort.Slice(goTypeDefs, func(i, j int) bool {
+		return goTypeDefs[i].RelString(nil) < goTypeDefs[j].RelString(nil)
+	})
+	// Index type definitions of Go SSA package.
+	// TODO: index type definitions.
+	// Compile type definitions of Go SSA package.
+	for _, goTypeDef := range goTypeDefs {
+		if err := m.emitType(goTypeDef); err != nil {
+			return nil, errors.WithStack(err)
+		}
+	}
+
+	// Sort functions of Go SSA package.
+	goFuncsMap := ssautil.AllFunctions(goPkg.Prog)
+	var goFuncs []*ssa.Function
+	for goFunc := range goFuncsMap {
+		goFuncs = append(goFuncs, goFunc)
+	}
+	sort.Slice(goFuncs, func(i, j int) bool {
+		return m.funcName(goFuncs[i]) < m.funcName(goFuncs[j])
+	})
+	// Index functions of Go SSA package.
+	for _, goFunc := range goFuncs {
+		if err := m.indexFunc(goFunc); err != nil {
+			return nil, errors.WithStack(err)
+		}
+	}
+	// Sort member names of Go SSA package.
 	memberNames := make([]string, 0, len(goPkg.Members))
 	for memberName := range goPkg.Members {
 		memberNames = append(memberNames, memberName)
 	}
 	sort.Strings(memberNames)
-	// Index SSA members of Go package.
+	// Index SSA members of Go SSA package.
 	for _, memberName := range memberNames {
-		member := goPkg.Members[memberName]
-		if err := m.indexMember(member); err != nil {
+		goMember := goPkg.Members[memberName]
+		// TODO: skip function? already indexed above.
+		if err := m.indexMember(goMember); err != nil {
 			return nil, errors.WithStack(err)
 		}
 	}
-	// Compile SSA members of Go package.
+	// Compile functions of Go SSA package.
+	for _, goFunc := range goFuncs {
+		if err := m.emitFunc(goFunc); err != nil {
+			return nil, errors.WithStack(err)
+		}
+	}
+	// Compile SSA members of Go SSA package.
 	for _, memberName := range memberNames {
-		member := goPkg.Members[memberName]
-		if err := m.emitMember(member); err != nil {
+		goMember := goPkg.Members[memberName]
+		// TODO: skip function? already indexed above.
+		if err := m.emitMember(goMember); err != nil {
 			return nil, errors.WithStack(err)
 		}
 	}
@@ -60,21 +105,23 @@ func CompilePackage(goPkg *ssa.Package) (*ir.Module, error) {
 
 // indexMember indexes the given Go SSA member, creating a corresponding LLVM IR
 // construct, emitting to m.
-func (m *Module) indexMember(member ssa.Member) error {
-	switch member := member.(type) {
+func (m *Module) indexMember(goMember ssa.Member) error {
+	switch goMember := goMember.(type) {
 	case *ssa.NamedConst:
-		return m.indexNamedConst(member)
+		return m.indexNamedConst(goMember)
 	case *ssa.Global:
-		return m.indexGlobal(member)
+		return m.indexGlobal(goMember)
 	case *ssa.Function:
-		return m.indexFunc(member)
+		// handled by indexFunc explicitly.
+		return nil
+		//return m.indexFunc(goMember)
 	case *ssa.Type:
 		// TODO: evaluate if we need to index type definitions or not before
 		// resolving them. What cycles may exist?
-		//return m.indexType(member)
+		//return m.indexType(goMember)
 		return nil // ignore indexing *ssa.Type for now
 	default:
-		panic(fmt.Errorf("support for SSA member %T (%q) not yet implemented", member, member.Name()))
+		panic(fmt.Errorf("support for SSA member %T (%q) not yet implemented", goMember, goMember.Name()))
 	}
 }
 
@@ -83,18 +130,22 @@ func (m *Module) indexMember(member ssa.Member) error {
 // emitMember compiles the given Go SSA member into LLVM IR, emitting to m.
 //
 // Pre-condition: index global members of m.
-func (m *Module) emitMember(member ssa.Member) error {
-	switch member := member.(type) {
+func (m *Module) emitMember(goMember ssa.Member) error {
+	switch goMember := goMember.(type) {
 	// TODO: uncomment.
 	//case *ssa.NamedConst:
-	//	return m.emitNamedConst(member)
+	//	return m.emitNamedConst(goMember)
 	case *ssa.Global:
-		return m.emitGlobal(member)
+		return m.emitGlobal(goMember)
 	case *ssa.Function:
-		return m.emitFunc(member)
+		// handled by emitFunc explicitly.
+		return nil
+		//return m.emitFunc(goMember)
 	case *ssa.Type:
-		return m.emitType(member)
+		// handled by emitType explicitly.
+		return nil
+		//return m.emitType(goMember)
 	default:
-		panic(fmt.Errorf("support for SSA member %T (%q) not yet implemented", member, member.Name()))
+		panic(fmt.Errorf("support for SSA member %T (%q) not yet implemented", goMember, goMember.Name()))
 	}
 }

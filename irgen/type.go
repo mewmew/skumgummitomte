@@ -242,7 +242,8 @@ func (m *Module) irTypeFromGoPointerType(goType *gotypes.Pointer) *irtypes.Point
 // Go function signature type, emitting to m.
 func (m *Module) irTypeFromGoSignatureType(goType *gotypes.Signature) *irtypes.PointerType { //*irtypes.FuncType {
 	if goType.Recv() != nil {
-		// TODO: add support for methods.
+		// TODO: add support for methods; add receiver as first function
+		// parameter.
 		panic("support for methods in Go function signature type not yet implemented")
 	}
 	// Convert Go function parameters to equivalent LLVM IR function parameter

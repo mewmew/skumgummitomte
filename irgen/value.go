@@ -40,7 +40,13 @@ func (fn *Func) irValueFromGo(goValue ssa.Value) irvalue.Value {
 	case *ssa.FreeVar:
 		panic("support for *ssa.FreeVar not yet implemented")
 	case *ssa.Parameter:
-		panic("support for *ssa.Parameter not yet implemented")
+		// Lookup indexed LLVM IR function parameter of Go SSA function parameter.
+		if v, ok := fn.locals[goValue]; ok {
+			return v
+		}
+		// Pre-condition invalidated, function parameter should have been indexed.
+		// This is a fatal error and indicates a bug in irgen.
+		panic(fmt.Errorf("unable to locate indexed LLVM IR function parameter of Go SSA function parameter %q", goValue.Name()))
 	// Value instruction.
 	case ssaValueInstruction:
 		// Lookup indexed LLVM IR value of Go SSA value instruction.

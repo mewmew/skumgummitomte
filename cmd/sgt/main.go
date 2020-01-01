@@ -88,7 +88,7 @@ func sgt(w io.Writer, pkgPaths []string) error {
 	}
 	// Create SSA packages of Go packages.
 	mode := ssa.PrintPackages | ssa.PrintFunctions | ssa.NaiveForm
-	prog, pkgs := ssautil.Packages(initial, mode)
+	prog, pkgs := ssautil.AllPackages(initial, mode)
 	// Build SSA code for all Go packages.
 	prog.Build()
 	// Compile Go packages to LLVM IR.

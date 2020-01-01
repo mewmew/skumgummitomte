@@ -1,5 +1,3 @@
-//+build ignore
-
 package p
 
 type T1 int

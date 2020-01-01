@@ -57,11 +57,28 @@ func (m *Module) NewFunc(goFunc *ssa.Function) *Func {
 // Pre-condition: initialize predeclared types.
 func (m *Module) initPredeclaredFuncs() {
 	// println.
-	retType := irtypes.Void
-	param := ir.NewParam("", m.irTypeFromName("string"))
-	printlnFunc := m.Module.NewFunc("println", retType, param)
-	printlnFunc.Sig.Variadic = true
-	m.predeclaredFuncs[printlnFunc.Name()] = printlnFunc
+	{
+		retType := irtypes.Void
+		param := ir.NewParam("", m.irTypeFromName("string"))
+		printlnFunc := m.Module.NewFunc("println", retType, param)
+		printlnFunc.Sig.Variadic = true
+		m.predeclaredFuncs[printlnFunc.Name()] = printlnFunc
+	}
+	// wrapnilchk returns ptr if non-nil, panics otherwise.
+	// (For use in indirection wrappers.)
+	//
+	//    func ssa:wrapnilchk(ptr *T, recvType, methodName string) *T
+	{
+		ptrType := irtypes.I8Ptr // generic pointer type.
+		retType := ptrType
+		params := []*ir.Param{
+			ir.NewParam("ptr", ptrType),
+			ir.NewParam("recvType", m.irTypeFromName("string")),
+			ir.NewParam("methodName", m.irTypeFromName("string")),
+		}
+		wrapnilchkFunc := m.Module.NewFunc("ssa:wrapnilchk", retType, params...)
+		m.predeclaredFuncs[wrapnilchkFunc.Name()] = wrapnilchkFunc
+	}
 }
 
 // --- [ get ] -----------------------------------------------------------------
@@ -76,7 +93,7 @@ func (m *Module) getFunc(goFunc *ssa.Function) *ir.Func {
 	if !ok {
 		// Pre-condition invalidated, function declaration not indexed. This is a
 		// fatal error and indicates a bug in irgen.
-		panic(fmt.Errorf("unable to locate indexed LLVM IR function declaration of Go SSA function %q", goFunc.Name()))
+		panic(fmt.Errorf("unable to locate indexed LLVM IR function declaration of Go SSA function %q", m.funcName(goFunc)))
 	}
 	return global.(*ir.Func)
 }
@@ -87,11 +104,10 @@ func (m *Module) getFunc(goFunc *ssa.Function) *ir.Func {
 // function, emitting to m.
 func (m *Module) indexFunc(goFunc *ssa.Function) error {
 	// TODO: use m.irTypeFromGo(goFunc.Signature) to simplify m.indexFunc.
-	// Convert Go function parameters to equivalent LLVM IR function parameters.
-	var params []*ir.Param
-	goParams := goFunc.Signature.Params()
-	for i := 0; i < goParams.Len(); i++ {
-		goParam := goParams.At(i)
+	// Convert Go function parameters to equivalent LLVM IR function parameters
+	// (including receiver of methods).
+	params := make([]*ir.Param, 0, len(goFunc.Params))
+	for _, goParam := range goFunc.Params {
 		paramName := goParam.Name()
 		paramType := m.irTypeFromGo(goParam.Type())
 		param := ir.NewParam(paramName, paramType)
@@ -124,7 +140,7 @@ func (m *Module) indexFunc(goFunc *ssa.Function) error {
 		retType = irtypes.NewStruct(resultTypes...)
 	}
 	// Generate LLVM IR function declaration, emitting to m.
-	f := m.Module.NewFunc(goFunc.Name(), retType, params...)
+	f := m.Module.NewFunc(m.funcName(goFunc), retType, params...)
 	f.Sig.Variadic = goFunc.Signature.Variadic()
 	// Index LLVM IR function declaration.
 	m.globals[goFunc] = f
@@ -148,8 +164,13 @@ func (m *Module) emitFunc(goFunc *ssa.Function) error {
 	if len(goFunc.Blocks) == 0 {
 		return nil
 	}
-	// Index Go SSA basic blocks by creating corresponding LLVM IR basic blocks.
+	// Index Go SSA function parameters (including receiver of methods).
 	fn := m.NewFunc(goFunc)
+	for i, goParam := range goFunc.Params {
+		param := fn.Func.Params[i]
+		fn.locals[goParam] = param
+	}
+	// Index Go SSA basic blocks by creating corresponding LLVM IR basic blocks.
 	for _, goBlock := range goFunc.Blocks {
 		if err := fn.indexBlock(goBlock); err != nil {
 			return errors.WithStack(err)
@@ -161,10 +182,10 @@ func (m *Module) emitFunc(goFunc *ssa.Function) error {
 	fn.cur.NewBr(entryBlock)
 	// Generate LLVM IR basic blocks of Go function definition.
 	//
-	// Process basic blocks in dominance order, starting with dominators and
-	// sorting equal dominance by basic block index.
-	// TODO: sort blocks by dom.
-	for _, goBlock := range goFunc.Blocks {
+	// Process basic blocks in dominator tree preorder.
+	// TODO: ensure stable sorting of basic blocks with equal dominance (sort by
+	// basic block index).
+	for _, goBlock := range goFunc.DomPreorder() {
 		if err := fn.emitBlock(goBlock); err != nil {
 			return errors.WithStack(err)
 		}
@@ -177,4 +198,19 @@ func (m *Module) emitFunc(goFunc *ssa.Function) error {
 		}
 	}
 	return nil
+}
+
+// ### [ Helper functions ] ####################################################
+
+// funcName returns the full name of the function, qualified by package name,
+// receiver type, etc.
+func (m *Module) funcName(goFunc *ssa.Function) string {
+	if m.goPkg.Pkg.Name() == "main" {
+		// Fully qualified function name if function is imported, otherwise
+		// function name without package path.
+		from := m.goPkg.Pkg
+		return goFunc.RelString(from)
+	}
+	// Fully qualified function name (with package path).
+	return goFunc.RelString(nil)
 }

@@ -353,7 +353,27 @@ func (fn *Func) emitCall(goInst *ssa.Call) error {
 		arg := fn.useValue(goArg)
 		args = append(args, arg)
 	}
-	inst := fn.cur.NewCall(callee, args...)
+	// Bitcast pointer types of "ssa:wrapnilchk" call as follows.
+	//
+	//    * first argument: from T* to i8*
+	//    * return value: from i8* to T*
+	isWrapNilChk := false
+	if named, ok := callee.(irvalue.Named); ok {
+		isWrapNilChk = named.Name() == "ssa:wrapnilchk"
+	}
+	var tType irtypes.Type
+	if isWrapNilChk {
+		tType = args[0].Type()
+		bitCastInst := fn.cur.NewBitCast(args[0], irtypes.I8Ptr)
+		dbg.Println("   bitCastInst:", bitCastInst)
+		args[0] = bitCastInst
+	}
+	var inst irValueInstruction = fn.cur.NewCall(callee, args...)
+	if isWrapNilChk {
+		bitCastInst := fn.cur.NewBitCast(inst, tType)
+		dbg.Println("   bitCastInst:", bitCastInst)
+		inst = bitCastInst
+	}
 	if !irtypes.Equal(inst.Type(), irtypes.Void) {
 		inst.SetName(goInst.Name())
 		fn.locals[goInst] = inst
