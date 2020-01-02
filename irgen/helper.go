@@ -229,3 +229,19 @@ func addMetadata(v ir.LLStringer, key, val string) {
 		panic(fmt.Errorf("support for instruction or terminator %T not yet implemented", v))
 	}
 }
+
+// isSigned reports whether the given integer type is signed.
+func (m *Module) isSigned(typ *irtypes.IntType) bool {
+	switch typ.Name() {
+	case "uint8", "uint16", "uint32", "uint64", "uint", "uintptr":
+		return false
+	case "int8", "int16", "int32", "int64", "int":
+		return true
+	case "byte": // alias for uint8
+		return false
+	case "rune": // alias for int32
+		return true
+	default:
+		panic(fmt.Errorf("support for integer type name %q not yet implemented", typ.Name()))
+	}
+}

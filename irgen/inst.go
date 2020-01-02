@@ -102,7 +102,7 @@ func (fn *Func) emitValueInst(goInst ssaValueInstruction) error {
 	case *ssa.Next:
 		panic("support for *ssa.Next not yet implemented")
 	case *ssa.Phi:
-		panic("support for *ssa.Phi not yet implemented")
+		return fn.emitPhi(goInst)
 	case *ssa.Range:
 		panic("support for *ssa.Range not yet implemented")
 	case *ssa.Select:
@@ -315,44 +315,138 @@ func (fn *Func) emitBinOp(goInst *ssa.BinOp) error {
 	switch goInst.Op {
 	// ADD (+)
 	case token.ADD: // +
-		switch x.Type().(type) {
+		switch typ := x.Type().(type) {
 		case *irtypes.IntType:
 			inst = fn.cur.NewAdd(x, y)
 		case *irtypes.FloatType:
 			inst = fn.cur.NewFAdd(x, y)
+		case *irtypes.StructType:
+			switch typ.Name() {
+			case "complex64", "complex128":
+				op := func(a, b irvalue.Value) irValueInstruction {
+					return fn.cur.NewFAdd(a, b)
+				}
+				inst = fn.emitComplexBinOp(op, x, y)
+			case "string":
+				// TODO: add support for string type.
+				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+			default:
+				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+			}
 		default:
-			panic(fmt.Errorf("support for operand type %T of Go SSA binary operation instruction (%v) not yet implemented", x.Type(), goInst.Op))
+			panic(fmt.Errorf("support for operand type %T of Go SSA binary operation instruction (%v) not yet implemented", typ, goInst.Op))
 		}
 	// SUB (-)
 	case token.SUB: // -
-		panic("support for Go SSA binary operation instruction token SUB (-) not yet implemented")
+		switch typ := x.Type().(type) {
+		case *irtypes.IntType:
+			inst = fn.cur.NewSub(x, y)
+		case *irtypes.FloatType:
+			inst = fn.cur.NewFSub(x, y)
+		case *irtypes.StructType:
+			switch typ.Name() {
+			case "complex64", "complex128":
+				op := func(a, b irvalue.Value) irValueInstruction {
+					return fn.cur.NewFSub(a, b)
+				}
+				inst = fn.emitComplexBinOp(op, x, y)
+			default:
+				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+			}
+		default:
+			panic(fmt.Errorf("support for operand type %T of Go SSA binary operation instruction (%v) not yet implemented", typ, goInst.Op))
+		}
 	// MUL (*)
 	case token.MUL: // *
-		panic("support for Go SSA binary operation instruction token MUL (*) not yet implemented")
+		switch typ := x.Type().(type) {
+		case *irtypes.IntType:
+			inst = fn.cur.NewMul(x, y)
+		case *irtypes.FloatType:
+			inst = fn.cur.NewFMul(x, y)
+		case *irtypes.StructType:
+			switch typ.Name() {
+			case "complex64", "complex128":
+				op := func(a, b irvalue.Value) irValueInstruction {
+					return fn.cur.NewFMul(a, b)
+				}
+				inst = fn.emitComplexBinOp(op, x, y)
+			default:
+				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+			}
+		default:
+			panic(fmt.Errorf("support for operand type %T of Go SSA binary operation instruction (%v) not yet implemented", typ, goInst.Op))
+		}
 	// QUO (/)
 	case token.QUO: // /
-		panic("support for Go SSA binary operation instruction token QUO (/) not yet implemented")
+		switch typ := x.Type().(type) {
+		case *irtypes.IntType:
+			if fn.m.isSigned(typ) {
+				inst = fn.cur.NewSDiv(x, y)
+			} else {
+				inst = fn.cur.NewUDiv(x, y)
+			}
+		case *irtypes.FloatType:
+			inst = fn.cur.NewFDiv(x, y)
+		case *irtypes.StructType:
+			switch typ.Name() {
+			case "complex64", "complex128":
+				op := func(a, b irvalue.Value) irValueInstruction {
+					return fn.cur.NewFDiv(a, b)
+				}
+				inst = fn.emitComplexBinOp(op, x, y)
+			default:
+				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+			}
+		default:
+			panic(fmt.Errorf("support for operand type %T of Go SSA binary operation instruction (%v) not yet implemented", typ, goInst.Op))
+		}
 	// REM (%)
 	case token.REM: // %
-		panic("support for Go SSA binary operation instruction token REM (%) not yet implemented")
+		switch typ := x.Type().(type) {
+		case *irtypes.IntType:
+			if fn.m.isSigned(typ) {
+				inst = fn.cur.NewSRem(x, y)
+			} else {
+				inst = fn.cur.NewURem(x, y)
+			}
+		default:
+			panic(fmt.Errorf("support for operand type %T of Go SSA binary operation instruction (%v) not yet implemented", typ, goInst.Op))
+		}
 	// AND (&)
 	case token.AND: // &
-		panic("support for Go SSA binary operation instruction token AND (&) not yet implemented")
+		inst = fn.cur.NewAnd(x, y)
 	// OR (|)
 	case token.OR: // |
-		panic("support for Go SSA binary operation instruction token OR (|) not yet implemented")
+		inst = fn.cur.NewOr(x, y)
 	// XOR (^)
 	case token.XOR: // ^
-		panic("support for Go SSA binary operation instruction token XOR (^) not yet implemented")
+		inst = fn.cur.NewXor(x, y)
 	// SHL (<<)
 	case token.SHL: // <<
-		panic("support for Go SSA binary operation instruction token SHL (<<) not yet implemented")
+		inst = fn.cur.NewShl(x, y)
 	// SHR (>>)
 	case token.SHR: // >>
-		panic("support for Go SSA binary operation instruction token SHR (>>) not yet implemented")
+		switch typ := x.Type().(type) {
+		case *irtypes.IntType:
+			if fn.m.isSigned(typ) {
+				inst = fn.cur.NewAShr(x, y)
+			} else {
+				inst = fn.cur.NewLShr(x, y)
+			}
+		default:
+			panic(fmt.Errorf("support for operand type %T of Go SSA binary operation instruction (%v) not yet implemented", typ, goInst.Op))
+		}
 	// AND_NOT (&^)
 	case token.AND_NOT: // &^
-		panic("support for Go SSA binary operation instruction token AND_NOT (&^) not yet implemented")
+		switch typ := x.Type().(type) {
+		case *irtypes.IntType:
+			zero := irconstant.NewInt(typ, 0)
+			tmp := fn.cur.NewXor(y, zero)
+			dbg.Println("   tmp:", tmp.LLString())
+			inst = fn.cur.NewAnd(x, tmp)
+		default:
+			panic(fmt.Errorf("support for operand type %T of Go SSA binary operation instruction (%v) not yet implemented", typ, goInst.Op))
+		}
 	// EQL (==)
 	case token.EQL: // ==
 		panic("support for Go SSA binary operation instruction token EQL (==) not yet implemented")
@@ -380,6 +474,43 @@ func (fn *Func) emitBinOp(goInst *ssa.BinOp) error {
 	fn.locals[goInst] = inst
 	dbg.Println("   inst:", inst.LLString())
 	return nil
+}
+
+// ~~~ [ complex binary operation ] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// emitComplexBinOp compiles the given complex binary operation to corresponding
+// LLVM IR instructions, emitting to fn.
+func (fn *Func) emitComplexBinOp(op func(a, b irvalue.Value) irValueInstruction, x, y irvalue.Value) irValueInstruction {
+	typ := x.Type()
+	// real part.
+	xReal := fn.cur.NewExtractValue(x, 0)
+	addMetadata(xReal, "comment", "real")
+	dbg.Println("   xReal:", xReal.LLString())
+	yReal := fn.cur.NewExtractValue(y, 0)
+	addMetadata(yReal, "comment", "real")
+	dbg.Println("   yReal:", yReal.LLString())
+	real := op(xReal, yReal)
+	addMetadata(real, "comment", "real")
+	dbg.Println("   real:", real.LLString())
+	// imaginary part.
+	xImag := fn.cur.NewExtractValue(x, 1)
+	addMetadata(xImag, "comment", "imag")
+	dbg.Println("   xImag:", xImag.LLString())
+	yImag := fn.cur.NewExtractValue(y, 1)
+	addMetadata(yImag, "comment", "imag")
+	dbg.Println("   yImag:", yImag.LLString())
+	imag := op(xImag, yImag)
+	addMetadata(imag, "comment", "imag")
+	dbg.Println("   imag:", imag.LLString())
+	// result.
+	alloca := fn.cur.NewAlloca(typ)
+	result := fn.cur.NewLoad(typ, alloca)
+	tmp1 := fn.cur.NewInsertValue(result, real, 0)
+	dbg.Println("   tmp1:", tmp1.LLString())
+	tmp2 := fn.cur.NewInsertValue(result, imag, 1)
+	dbg.Println("   tmp2:", tmp2.LLString())
+	inst := tmp2
+	return inst
 }
 
 // --- [ call instruction ] ----------------------------------------------------
@@ -430,6 +561,29 @@ func (fn *Func) emitCall(goInst *ssa.Call) error {
 	return nil
 }
 
+// --- [ phi instruction ] -----------------------------------------------------
+
+// emitPhi compiles the given Go SSA phi instruction to corresponding LLVM IR
+// instructions, emitting to fn.
+func (fn *Func) emitPhi(goInst *ssa.Phi) error {
+	dbg.Println("emitPhi")
+	var incs []*ir.Incoming
+	for i, goEdge := range goInst.Edges {
+		x := fn.irValueFromGo(goEdge)
+		goPred := goInst.Block().Preds[i]
+		pred := fn.getBlock(goPred)
+		inc := ir.NewIncoming(x, pred)
+		incs = append(incs, inc)
+	}
+	inst := fn.cur.NewPhi(incs...)
+	if len(goInst.Comment) > 0 {
+		addMetadata(inst, "comment", goInst.Comment)
+	}
+	fn.locals[goInst] = inst
+	dbg.Println("   inst:", inst.LLString())
+	return nil
+}
+
 // --- [ unary operation instruction ] -----------------------------------------
 
 // emitUnOp compiles the given Go SSA unary operation instruction to
@@ -456,7 +610,7 @@ func (fn *Func) emitUnOp(goInst *ssa.UnOp) error {
 			zero := irconstant.NewFloat(typ, 0)
 			inst = fn.cur.NewFSub(zero, x)
 		default:
-			panic(fmt.Errorf("support for operand type %T of Go SSA binary operation instruction (%v) not yet implemented", x.Type(), goInst.Op))
+			panic(fmt.Errorf("support for operand type %T of Go SSA binary operation instruction (%v) not yet implemented", typ, goInst.Op))
 		}
 	// Channel receive.
 	case token.ARROW: // <-
@@ -478,7 +632,7 @@ func (fn *Func) emitUnOp(goInst *ssa.UnOp) error {
 			zero := irconstant.NewInt(typ, 0)
 			inst = fn.cur.NewXor(x, zero)
 		default:
-			panic(fmt.Errorf("support for operand type %T of Go SSA binary operation instruction (%v) not yet implemented", x.Type(), goInst.Op))
+			panic(fmt.Errorf("support for operand type %T of Go SSA binary operation instruction (%v) not yet implemented", typ, goInst.Op))
 		}
 	default:
 		panic(fmt.Errorf("support for Go SSA unary operation instruction token %v not yet implemented", goInst.Op))

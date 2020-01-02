@@ -24,9 +24,10 @@ func sumComplex(x, y complex128) complex128 {
 	return x + y
 }
 
-func sumString(x, y string) string {
-	return x + y // string concatenation
-}
+// TODO: uncomment.
+//func sumString(x, y string) string {
+//	return x + y // string concatenation
+//}
 
 // --- [ difference ] ----------------------------------------------------------
 
