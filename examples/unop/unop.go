@@ -9,7 +9,6 @@ package p
 //    ^x    bitwise complement    is m ^ x  with m = "all bits set to 1" for unsigned x
 //                                          and  m = -1 for signed x
 
-
 // --- [ plus ] ----------------------------------------------------------------
 
 func plusInt(x int) int {
