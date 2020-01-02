@@ -31,7 +31,7 @@ func (fn *Func) getBlock(goBlock *ssa.BasicBlock) *ir.Block {
 // LLVM IR basic block, emitting to fn.
 func (fn *Func) indexBlock(goBlock *ssa.BasicBlock) error {
 	// Generate LLVM IR basic block.
-	blockName := fmt.Sprintf("block_%d", goBlock.Index)
+	blockName := getBlockName(goBlock.Index)
 	block := ir.NewBlock(blockName)
 	// Index LLVM IR basic block.
 	fn.blocks[goBlock] = block
@@ -56,4 +56,12 @@ func (fn *Func) emitBlock(goBlock *ssa.BasicBlock) error {
 		}
 	}
 	return nil
+}
+
+// ### [ Helper functions ] ####################################################
+
+// getBlockName returns the LLVM IR basic block name based on the given Go SSA
+// basic block index.
+func getBlockName(index int) string {
+	return fmt.Sprintf("block_%04d", index)
 }

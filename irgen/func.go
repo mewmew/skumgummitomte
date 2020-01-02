@@ -2,6 +2,9 @@ package irgen
 
 import (
 	"fmt"
+	"os"
+	"sort"
+	"strings"
 
 	"github.com/llir/llvm/ir"
 	irtypes "github.com/llir/llvm/ir/types"
@@ -241,11 +244,13 @@ func (m *Module) emitFunc(goFunc *ssa.Function) error {
 			if done[goBlock] {
 				continue
 			}
-			// Check that all predecessors of goBlock are emitted prior to emitting
-			// goBlock.
-			for _, goPred := range goBlock.Preds {
-				if !done[goPred] {
-					continue loop
+			// Before emitting block containing phi instruction, ensure that all
+			// predecessors of goBlock have been emitted.
+			if containsPhi(goBlock) {
+				for _, goPred := range goBlock.Preds {
+					if !done[goPred] {
+						continue loop
+					}
 				}
 			}
 			done[goBlock] = true
@@ -254,6 +259,16 @@ func (m *Module) emitFunc(goFunc *ssa.Function) error {
 			}
 		}
 		if prev == len(done) {
+			goFunc.WriteTo(os.Stderr)
+			var remaining []string
+			for _, goBlock := range goBlocks {
+				if !done[goBlock] {
+					blockName := getBlockName(goBlock.Index)
+					remaining = append(remaining, blockName)
+				}
+				sort.Strings(remaining)
+			}
+			warn.Printf("remaining basic blocks with cyclic references: %v", strings.Join(remaining, ", "))
 			panic(fmt.Errorf("unable to process basic blocks of %q; cyclic predecessor dependency detected", m.fullName(goFunc)))
 		}
 	}
@@ -265,4 +280,16 @@ func (m *Module) emitFunc(goFunc *ssa.Function) error {
 		}
 	}
 	return nil
+}
+
+// ### [ Helper functions ] ####################################################
+
+// containsPhi reports whether the given basic block contains a phi instruction.
+func containsPhi(goBlock *ssa.BasicBlock) bool {
+	for _, goInst := range goBlock.Instrs {
+		if _, ok := goInst.(*ssa.Phi); ok {
+			return true
+		}
+	}
+	return false
 }

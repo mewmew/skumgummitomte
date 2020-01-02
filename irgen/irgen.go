@@ -28,7 +28,7 @@ func CompilePackage(goPkg *ssa.Package) (*ir.Module, error) {
 	dbg.Println("CompilePackage")
 	dbg.Println("   goPkg:", goPkg.Pkg.Name())
 	// TODO: remove debug output.
-	goPkg.WriteTo(os.Stdout)
+	goPkg.WriteTo(os.Stderr)
 	// Create LLVM IR module generator for the given Go SSA package.
 	m := NewModule(goPkg)
 	// Initialize LLVM IR types corresponding to the predeclared Go types.
