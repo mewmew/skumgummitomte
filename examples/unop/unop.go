@@ -33,7 +33,7 @@ func minusFloat(x float64) float64 {
 // --- [ bitwise complement ] --------------------------------------------------
 
 func bitwiseComplement(x int) int {
-	return +x
+	return ^x
 }
 
 // === [ Logical operators ] ===================================================
