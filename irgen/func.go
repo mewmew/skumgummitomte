@@ -2,7 +2,6 @@ package irgen
 
 import (
 	"fmt"
-	"os"
 	"sort"
 	"strings"
 
@@ -259,7 +258,7 @@ func (m *Module) emitFunc(goFunc *ssa.Function) error {
 			}
 		}
 		if prev == len(done) {
-			goFunc.WriteTo(os.Stderr)
+			goFunc.WriteTo(ssaDebugWriter)
 			var remaining []string
 			for _, goBlock := range goBlocks {
 				if !done[goBlock] {

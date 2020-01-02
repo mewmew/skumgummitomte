@@ -3,6 +3,7 @@ package irgen
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"sort"
@@ -23,12 +24,26 @@ var (
 	warn = log.New(os.Stderr, term.RedBold("irgen:")+" ", 0)
 )
 
+// Default output writer for ssa debug messages.
+var ssaDebugWriter io.Writer = os.Stderr
+
+// SetDebugOutput sets the output writer for debug messages to w.
+func SetDebugOutput(w io.Writer) {
+	dbg.SetOutput(w)
+	ssaDebugWriter = w
+}
+
+// SetWarningOutput sets the output writer for warning messages to w.
+func SetWarningOutput(w io.Writer) {
+	warn.SetOutput(w)
+}
+
 // CompilePackage compiles the given Go SSA package into an LLVM IR module.
 func CompilePackage(goPkg *ssa.Package) (*ir.Module, error) {
 	dbg.Println("CompilePackage")
 	dbg.Println("   goPkg:", goPkg.Pkg.Name())
 	// TODO: remove debug output.
-	goPkg.WriteTo(os.Stderr)
+	goPkg.WriteTo(ssaDebugWriter)
 	// Create LLVM IR module generator for the given Go SSA package.
 	m := NewModule(goPkg)
 	// Initialize LLVM IR types corresponding to the predeclared Go types.

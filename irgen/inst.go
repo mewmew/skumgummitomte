@@ -3,7 +3,6 @@ package irgen
 import (
 	"fmt"
 	"go/token"
-	"os"
 
 	"github.com/llir/llvm/ir"
 	irconstant "github.com/llir/llvm/ir/constant"
@@ -35,23 +34,23 @@ func (fn *Func) emitInst(goInst ssa.Instruction) error {
 		return fn.emitValueInst(goInst)
 	// Non-value producing instructions.
 	case *ssa.DebugRef:
-		goInst.Parent().WriteTo(os.Stderr)
+		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic("support for *ssa.DebugRef not yet implemented")
 	case *ssa.Defer:
-		goInst.Parent().WriteTo(os.Stderr)
+		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic("support for *ssa.Defer not yet implemented")
 	case *ssa.Go:
-		goInst.Parent().WriteTo(os.Stderr)
+		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic("support for *ssa.Go not yet implemented")
 	case *ssa.If:
 		return fn.emitIf(goInst)
 	case *ssa.Jump:
 		return fn.emitJump(goInst)
 	case *ssa.MapUpdate:
-		goInst.Parent().WriteTo(os.Stderr)
+		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic("support for *ssa.MapUpdate not yet implemented")
 	case *ssa.Panic:
-		goInst.Parent().WriteTo(os.Stderr)
+		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic("support for *ssa.Panic not yet implemented")
 	case *ssa.Return:
 		return fn.emitReturn(goInst)
@@ -59,7 +58,7 @@ func (fn *Func) emitInst(goInst ssa.Instruction) error {
 		// TODO: implement support for defer.
 		return nil // ignore *ssa.RunDefers instruction for now
 	case *ssa.Send:
-		goInst.Parent().WriteTo(os.Stderr)
+		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic("support for *ssa.Send not yet implemented")
 	case *ssa.Store:
 		return fn.emitStore(goInst)
@@ -79,61 +78,61 @@ func (fn *Func) emitValueInst(goInst ssaValueInstruction) error {
 	case *ssa.Call:
 		return fn.emitCall(goInst)
 	case *ssa.ChangeInterface:
-		goInst.Parent().WriteTo(os.Stderr)
+		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic("support for *ssa.ChangeInterface not yet implemented")
 	case *ssa.ChangeType:
-		goInst.Parent().WriteTo(os.Stderr)
+		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic("support for *ssa.ChangeType not yet implemented")
 	case *ssa.Convert:
 		return fn.emitConvert(goInst)
 	case *ssa.Extract:
 		return fn.emitExtract(goInst)
 	case *ssa.Field:
-		goInst.Parent().WriteTo(os.Stderr)
+		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic("support for *ssa.Field not yet implemented")
 	case *ssa.FieldAddr:
-		goInst.Parent().WriteTo(os.Stderr)
+		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic("support for *ssa.FieldAddr not yet implemented")
 	case *ssa.Index:
-		goInst.Parent().WriteTo(os.Stderr)
+		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic("support for *ssa.Index not yet implemented")
 	case *ssa.IndexAddr:
-		goInst.Parent().WriteTo(os.Stderr)
+		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic("support for *ssa.IndexAddr not yet implemented")
 	case *ssa.Lookup:
-		goInst.Parent().WriteTo(os.Stderr)
+		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic("support for *ssa.Lookup not yet implemented")
 	case *ssa.MakeChan:
-		goInst.Parent().WriteTo(os.Stderr)
+		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic("support for *ssa.MakeChan not yet implemented")
 	case *ssa.MakeClosure:
-		goInst.Parent().WriteTo(os.Stderr)
+		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic("support for *ssa.MakeClosure not yet implemented")
 	case *ssa.MakeInterface:
-		goInst.Parent().WriteTo(os.Stderr)
+		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic("support for *ssa.MakeInterface not yet implemented")
 	case *ssa.MakeMap:
-		goInst.Parent().WriteTo(os.Stderr)
+		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic("support for *ssa.MakeMap not yet implemented")
 	case *ssa.MakeSlice:
-		goInst.Parent().WriteTo(os.Stderr)
+		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic("support for *ssa.MakeSlice not yet implemented")
 	case *ssa.Next:
-		goInst.Parent().WriteTo(os.Stderr)
+		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic("support for *ssa.Next not yet implemented")
 	case *ssa.Phi:
 		return fn.emitPhi(goInst)
 	case *ssa.Range:
-		goInst.Parent().WriteTo(os.Stderr)
+		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic("support for *ssa.Range not yet implemented")
 	case *ssa.Select:
-		goInst.Parent().WriteTo(os.Stderr)
+		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic("support for *ssa.Select not yet implemented")
 	case *ssa.Slice:
-		goInst.Parent().WriteTo(os.Stderr)
+		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic("support for *ssa.Slice not yet implemented")
 	case *ssa.TypeAssert:
-		goInst.Parent().WriteTo(os.Stderr)
+		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic("support for *ssa.TypeAssert not yet implemented")
 	case *ssa.UnOp:
 		return fn.emitUnOp(goInst)

@@ -2,3 +2,4 @@ cmd/sgt/skip
 examples
 *.ll
 *.txt
+*.sh

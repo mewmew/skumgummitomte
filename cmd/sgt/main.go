@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -43,8 +44,11 @@ func main() {
 	var (
 		// Output path of LLVM IR module.
 		output string
+		// quiet specifies whether to suppress non-error messages.
+		quiet bool
 	)
 	flag.StringVar(&output, "o", "", "output path of LLVM IR module (default: standard output)")
+	flag.BoolVar(&quiet, "q", false, "suppress non-error messages")
 	flag.Usage = usage
 	flag.Parse()
 	if flag.NArg() == 0 {
@@ -52,6 +56,11 @@ func main() {
 		os.Exit(1)
 	}
 	pkgPaths := flag.Args()
+	// Mute debug messages if `-q` is set.
+	if quiet {
+		dbg.SetOutput(ioutil.Discard)
+		irgen.SetDebugOutput(ioutil.Discard)
+	}
 
 	// Write to standard output or output file path if specified by -o flag.
 	w := os.Stdout
@@ -87,7 +96,7 @@ func sgt(w io.Writer, pkgPaths []string) error {
 		return errors.Errorf("packages contain errors (%s)", strings.Join(pkgPaths, ", "))
 	}
 	// Create SSA packages of Go packages.
-	mode := ssa.PrintPackages | ssa.PrintFunctions | ssa.NaiveForm
+	mode := ssa.PrintFunctions | ssa.NaiveForm
 	prog, pkgs := ssautil.AllPackages(initial, mode)
 	// Build SSA code for all Go packages.
 	prog.Build()
