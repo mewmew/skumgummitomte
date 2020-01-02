@@ -91,8 +91,7 @@ func (fn *Func) emitValueInst(goInst ssaValueInstruction) error {
 		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic(fmt.Errorf("support for *ssa.Field (in %q) not yet implemented", goInst.Name()))
 	case *ssa.FieldAddr:
-		goInst.Parent().WriteTo(ssaDebugWriter)
-		panic(fmt.Errorf("support for *ssa.FieldAddr (in %q) not yet implemented", goInst.Name()))
+		return fn.emitFieldAddr(goInst)
 	case *ssa.Index:
 		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic(fmt.Errorf("support for *ssa.Index (in %q) not yet implemented", goInst.Name()))
@@ -810,6 +809,33 @@ func (fn *Func) emitExtract(goInst *ssa.Extract) error {
 	return nil
 }
 
+// --- [ field address instruction ] -------------------------------------------
+
+// emitFieldAddr compiles the given Go SSA fieldaddr instruction to
+// corresponding LLVM IR instructions, emitting to fn.
+func (fn *Func) emitFieldAddr(goInst *ssa.FieldAddr) error {
+	dbg.Println("emitFieldAddr")
+	x := fn.useValue(goInst.X)
+	var inst irValueInstruction
+	switch xType := x.Type().(type) {
+	// *struct
+	case *irtypes.PointerType:
+		zero := irconstant.NewInt(irtypes.I64, 0)
+		field := irconstant.NewInt(irtypes.I64, int64(goInst.Field))
+		indices := []irvalue.Value{
+			zero,
+			field,
+		}
+		inst = fn.cur.NewGetElementPtr(xType.ElemType, x, indices...)
+	default:
+		panic(fmt.Errorf("support for %T of fieldaddr instruction not yet implemented", xType))
+	}
+	inst.SetName(goInst.Name())
+	fn.locals[goInst] = inst
+	dbg.Println("   inst:", inst.LLString())
+	return nil
+}
+
 // --- [ index address instruction ] -------------------------------------------
 
 // emitIndexAddr compiles the given Go SSA indexaddr instruction to
@@ -818,9 +844,24 @@ func (fn *Func) emitIndexAddr(goInst *ssa.IndexAddr) error {
 	dbg.Println("emitIndexAddr")
 	x := fn.useValue(goInst.X)
 	index := fn.useValue(goInst.Index)
-	elemType := x.Type().(*irtypes.PointerType).ElemType
-	// TODO: fix handling of globals, slices, arrays.
-	inst := fn.cur.NewGetElementPtr(elemType, x, irconstant.NewInt(irtypes.I64, 0), index)
+	var inst irValueInstruction
+	switch xType := x.Type().(type) {
+	// *array
+	case *irtypes.PointerType:
+		// TODO: Verify that arrays are working as intended.
+		zero := irconstant.NewInt(irtypes.I64, 0)
+		indices := []irvalue.Value{
+			zero,
+			index,
+		}
+		inst = fn.cur.NewGetElementPtr(xType.ElemType, x, indices...)
+	// slice
+	case *irtypes.StructType:
+		// TODO: fix handling of slices ({data, len, cap} slice header struct).
+		panic(fmt.Errorf("support for %T (slice) of indexaddr instruction not yet implemented", xType))
+	default:
+		panic(fmt.Errorf("support for %T of indexaddr instruction not yet implemented", xType))
+	}
 	inst.SetName(goInst.Name())
 	fn.locals[goInst] = inst
 	dbg.Println("   inst:", inst.LLString())

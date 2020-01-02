@@ -79,6 +79,7 @@ func (m *Module) irValueFromGo(goValue ssa.Value) irvalue.Value {
 	case *ssa.Function:
 		return m.irValueFromGoFunc(goValue)
 	case *ssa.Global:
+		warn.Printf("unable to locate LLVM IR value of global Go value %q", m.fullName(goValue))
 		panic("support for *ssa.Global not yet implemented")
 	default:
 		panic(fmt.Errorf("support for Go SSA value %T not yet implemented", goValue))
