@@ -136,7 +136,7 @@ func (m *Module) irTypeFromName(typeName string) irtypes.Type {
 func (m *Module) irTypeFromGo(goType gotypes.Type) irtypes.Type {
 	switch goType := goType.(type) {
 	case *gotypes.Array:
-		panic("support for *gotypes.Array not yet implemented")
+		return m.irTypeFromGoArrayType(goType)
 	case *gotypes.Basic:
 		return m.irTypeFromGoBasicType(goType)
 	case *gotypes.Chan:
@@ -160,6 +160,16 @@ func (m *Module) irTypeFromGo(goType gotypes.Type) irtypes.Type {
 	default:
 		panic(fmt.Errorf("support for Go type %T not yet implemented", goType))
 	}
+}
+
+// ~~~ [ array type ] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// irTypeFromGoArrayType returns the LLVM IR type corresponding to the given Go
+// array type, emitting to m.
+func (m *Module) irTypeFromGoArrayType(goType *gotypes.Array) *irtypes.ArrayType {
+	length := uint64(goType.Len())
+	elemType := m.irTypeFromGo(goType.Elem())
+	return irtypes.NewArray(length, elemType)
 }
 
 // ~~~ [ basic type ] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
