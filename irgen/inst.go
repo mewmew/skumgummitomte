@@ -79,61 +79,60 @@ func (fn *Func) emitValueInst(goInst ssaValueInstruction) error {
 		return fn.emitCall(goInst)
 	case *ssa.ChangeInterface:
 		goInst.Parent().WriteTo(ssaDebugWriter)
-		panic("support for *ssa.ChangeInterface not yet implemented")
+		panic(fmt.Errorf("support for *ssa.ChangeInterface (in %q) not yet implemented", goInst.Name()))
 	case *ssa.ChangeType:
 		goInst.Parent().WriteTo(ssaDebugWriter)
-		panic("support for *ssa.ChangeType not yet implemented")
+		panic(fmt.Errorf("support for *ssa.ChangeType (in %q) not yet implemented", goInst.Name()))
 	case *ssa.Convert:
 		return fn.emitConvert(goInst)
 	case *ssa.Extract:
 		return fn.emitExtract(goInst)
 	case *ssa.Field:
 		goInst.Parent().WriteTo(ssaDebugWriter)
-		panic("support for *ssa.Field not yet implemented")
+		panic(fmt.Errorf("support for *ssa.Field (in %q) not yet implemented", goInst.Name()))
 	case *ssa.FieldAddr:
 		goInst.Parent().WriteTo(ssaDebugWriter)
-		panic("support for *ssa.FieldAddr not yet implemented")
+		panic(fmt.Errorf("support for *ssa.FieldAddr (in %q) not yet implemented", goInst.Name()))
 	case *ssa.Index:
 		goInst.Parent().WriteTo(ssaDebugWriter)
-		panic("support for *ssa.Index not yet implemented")
+		panic(fmt.Errorf("support for *ssa.Index (in %q) not yet implemented", goInst.Name()))
 	case *ssa.IndexAddr:
-		goInst.Parent().WriteTo(ssaDebugWriter)
-		panic("support for *ssa.IndexAddr not yet implemented")
+		return fn.emitIndexAddr(goInst)
 	case *ssa.Lookup:
 		goInst.Parent().WriteTo(ssaDebugWriter)
-		panic("support for *ssa.Lookup not yet implemented")
+		panic(fmt.Errorf("support for *ssa.Lookup (in %q) not yet implemented", goInst.Name()))
 	case *ssa.MakeChan:
 		goInst.Parent().WriteTo(ssaDebugWriter)
-		panic("support for *ssa.MakeChan not yet implemented")
+		panic(fmt.Errorf("support for *ssa.MakeChan (in %q) not yet implemented", goInst.Name()))
 	case *ssa.MakeClosure:
 		goInst.Parent().WriteTo(ssaDebugWriter)
-		panic("support for *ssa.MakeClosure not yet implemented")
+		panic(fmt.Errorf("support for *ssa.MakeClosure (in %q) not yet implemented", goInst.Name()))
 	case *ssa.MakeInterface:
 		goInst.Parent().WriteTo(ssaDebugWriter)
-		panic("support for *ssa.MakeInterface not yet implemented")
+		panic(fmt.Errorf("support for *ssa.MakeInterface (in %q) not yet implemented", goInst.Name()))
 	case *ssa.MakeMap:
 		goInst.Parent().WriteTo(ssaDebugWriter)
-		panic("support for *ssa.MakeMap not yet implemented")
+		panic(fmt.Errorf("support for *ssa.MakeMap (in %q) not yet implemented", goInst.Name()))
 	case *ssa.MakeSlice:
 		goInst.Parent().WriteTo(ssaDebugWriter)
-		panic("support for *ssa.MakeSlice not yet implemented")
+		panic(fmt.Errorf("support for *ssa.MakeSlice (in %q) not yet implemented", goInst.Name()))
 	case *ssa.Next:
 		goInst.Parent().WriteTo(ssaDebugWriter)
-		panic("support for *ssa.Next not yet implemented")
+		panic(fmt.Errorf("support for *ssa.Next (in %q) not yet implemented", goInst.Name()))
 	case *ssa.Phi:
 		return fn.emitPhi(goInst)
 	case *ssa.Range:
 		goInst.Parent().WriteTo(ssaDebugWriter)
-		panic("support for *ssa.Range not yet implemented")
+		panic(fmt.Errorf("support for *ssa.Range (in %q) not yet implemented", goInst.Name()))
 	case *ssa.Select:
 		goInst.Parent().WriteTo(ssaDebugWriter)
-		panic("support for *ssa.Select not yet implemented")
+		panic(fmt.Errorf("support for *ssa.Select (in %q) not yet implemented", goInst.Name()))
 	case *ssa.Slice:
 		goInst.Parent().WriteTo(ssaDebugWriter)
-		panic("support for *ssa.Slice not yet implemented")
+		panic(fmt.Errorf("support for *ssa.Slice (in %q) not yet implemented", goInst.Name()))
 	case *ssa.TypeAssert:
 		goInst.Parent().WriteTo(ssaDebugWriter)
-		panic("support for *ssa.TypeAssert not yet implemented")
+		panic(fmt.Errorf("support for *ssa.TypeAssert (in %q) not yet implemented", goInst.Name()))
 	case *ssa.UnOp:
 		return fn.emitUnOp(goInst)
 	default:
@@ -715,7 +714,7 @@ func (fn *Func) emitCall(goInst *ssa.Call) error {
 //    - from (Unicode) integer to (UTF-8) string.
 func (fn *Func) emitConvert(goInst *ssa.Convert) error {
 	dbg.Println("emitConvert")
-	from := fn.irValueFromGo(goInst.X)
+	from := fn.useValue(goInst.X)
 	to := fn.m.irTypeFromGo(goInst.Type())
 	var inst irValueInstruction
 	switch fromType := from.Type().(type) {
@@ -757,6 +756,23 @@ func (fn *Func) emitConvert(goInst *ssa.Convert) error {
 			} else {
 				inst = fn.cur.NewFPToUI(from, to)
 			}
+		// float -> float
+		case *irtypes.FloatType:
+			fromPrec := precFromFloatKind(fromType.Kind)
+			toPrec := precFromFloatKind(toType.Kind)
+			switch {
+			case fromPrec == toPrec:
+				// Currently the number of precision bits is unique to each
+				// floating-point kind, thus this simply converts from e.g. double
+				// to double. Otherwise, bitcast would not be valid.
+				// TODO: consider using FPTrunc of FPExt instead, as they are
+				// float-aware (which bitcast is not).
+				inst = fn.cur.NewBitCast(from, to)
+			case fromPrec < toPrec:
+				inst = fn.cur.NewFPExt(from, to)
+			case fromPrec > toPrec:
+				inst = fn.cur.NewFPTrunc(from, to)
+			}
 		// TODO: add support for more to types.
 		default:
 			panic(fmt.Errorf("support for converting from type %T (%v) to type %T (%v) not yet implemented", fromType, fromType, to, to))
@@ -786,8 +802,25 @@ func (fn *Func) emitConvert(goInst *ssa.Convert) error {
 // LLVM IR instructions, emitting to fn.
 func (fn *Func) emitExtract(goInst *ssa.Extract) error {
 	dbg.Println("emitExtract")
-	tuple := fn.irValueFromGo(goInst.Tuple)
+	tuple := fn.useValue(goInst.Tuple)
 	inst := fn.cur.NewExtractValue(tuple, uint64(goInst.Index))
+	inst.SetName(goInst.Name())
+	fn.locals[goInst] = inst
+	dbg.Println("   inst:", inst.LLString())
+	return nil
+}
+
+// --- [ index address instruction ] -------------------------------------------
+
+// emitIndexAddr compiles the given Go SSA indexaddr instruction to
+// corresponding LLVM IR instructions, emitting to fn.
+func (fn *Func) emitIndexAddr(goInst *ssa.IndexAddr) error {
+	dbg.Println("emitIndexAddr")
+	x := fn.useValue(goInst.X)
+	index := fn.useValue(goInst.Index)
+	elemType := x.Type().(*irtypes.PointerType).ElemType
+	// TODO: fix handling of globals, slices, arrays.
+	inst := fn.cur.NewGetElementPtr(elemType, x, irconstant.NewInt(irtypes.I64, 0), index)
 	inst.SetName(goInst.Name())
 	fn.locals[goInst] = inst
 	dbg.Println("   inst:", inst.LLString())
@@ -802,7 +835,7 @@ func (fn *Func) emitPhi(goInst *ssa.Phi) error {
 	dbg.Println("emitPhi")
 	var incs []*ir.Incoming
 	for i, goEdge := range goInst.Edges {
-		x := fn.irValueFromGo(goEdge)
+		x := fn.useValue(goEdge)
 		goPred := goInst.Block().Preds[i]
 		pred := fn.getBlock(goPred)
 		inc := ir.NewIncoming(x, pred)
