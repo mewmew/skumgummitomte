@@ -76,7 +76,7 @@ func (fn *Func) emitValueInst(goInst ssaValueInstruction) error {
 	case *ssa.ChangeType:
 		panic("support for *ssa.ChangeType not yet implemented")
 	case *ssa.Convert:
-		panic("support for *ssa.Convert not yet implemented")
+		return fn.emitConvert(goInst)
 	case *ssa.Extract:
 		panic("support for *ssa.Extract not yet implemented")
 	case *ssa.Field:
@@ -673,6 +673,50 @@ func (fn *Func) emitCall(goInst *ssa.Call) error {
 		inst.SetName(goInst.Name())
 		fn.locals[goInst] = inst
 	}
+	dbg.Println("   inst:", inst.LLString())
+	return nil
+}
+
+// --- [ convert instruction ] -------------------------------------------------
+
+// emitConvert compiles the given Go SSA convert instruction to corresponding
+// LLVM IR instructions, emitting to fn.
+//
+// Conversions are permitted:
+//    - between real numeric types.
+//    - between complex numeric types.
+//    - between string and []byte or []rune.
+//    - between pointers and unsafe.Pointer.
+//    - between unsafe.Pointer and uintptr.
+//    - from (Unicode) integer to (UTF-8) string.
+func (fn *Func) emitConvert(goInst *ssa.Convert) error {
+	dbg.Println("emitConvert")
+	from := fn.irValueFromGo(goInst.X)
+	to := fn.m.irTypeFromGo(goInst.Type())
+	var inst irValueInstruction
+	switch fromType := from.Type().(type) {
+	case *irtypes.IntType:
+		switch toType := to.(type) {
+		//case *irtypes.IntType:
+		default:
+			panic(fmt.Errorf("support for converting from type %T to type %T not yet implemented", fromType, toType))
+		}
+	case *irtypes.FloatType:
+		switch toType := to.(type) {
+		case *irtypes.IntType:
+			if fn.m.isSigned(toType) {
+				inst = fn.cur.NewFPToSI(from, to)
+			} else {
+				inst = fn.cur.NewFPToUI(from, to)
+			}
+		default:
+			panic(fmt.Errorf("support for converting from type %T to type %T not yet implemented", fromType, toType))
+		}
+	default:
+		panic(fmt.Errorf("support for converting from type %T not yet implemented", fromType))
+	}
+	inst.SetName(goInst.Name())
+	fn.locals[goInst] = inst
 	dbg.Println("   inst:", inst.LLString())
 	return nil
 }
