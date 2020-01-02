@@ -3,6 +3,7 @@ package irgen
 import (
 	"fmt"
 	goconstant "go/constant"
+	"math/big"
 
 	"github.com/llir/llvm/ir"
 	irconstant "github.com/llir/llvm/ir/constant"
@@ -119,6 +120,18 @@ func (m *Module) irValueFromGoConst(goConst *ssa.Const) irconstant.Constant {
 		switch kind := goConst.Value.Kind(); kind {
 		default:
 			panic(fmt.Errorf("support for Go constant kind %v not yet implemented", kind))
+		}
+	case *big.Rat:
+		floatType, ok := typ.(*irtypes.FloatType)
+		if !ok {
+			panic(fmt.Errorf("invalid type of Go constant *big.Rat; expected *irtypes.FloatType, got %T", typ))
+		}
+		prec := precFromFloatKind(floatType.Kind)
+		x := big.NewFloat(0).SetPrec(prec)
+		x.SetRat(goVal)
+		return &irconstant.Float{
+			Typ: floatType,
+			X:   x,
 		}
 	default:
 		panic(fmt.Errorf("support for Go constant %T not yet implemented", goVal))

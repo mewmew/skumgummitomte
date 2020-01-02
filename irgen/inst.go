@@ -164,7 +164,10 @@ func (fn *Func) emitReturn(goInst *ssa.Return) error {
 	var results []irvalue.Value
 	for _, goResult := range goInst.Results {
 		result := fn.useValue(goResult)
-		fmt.Println("   result:", result)
+		dbg.Println("   result:", result)
+		if r, ok := result.(*irconstant.Float); ok {
+			dbg.Println("   result (float):", r.X.String())
+		}
 		results = append(results, result)
 	}
 	// Return value; nil if void return, and struct if multiple return value.

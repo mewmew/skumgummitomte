@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/llir/llvm/ir"
+	irconstant "github.com/llir/llvm/ir/constant"
 	irtypes "github.com/llir/llvm/ir/types"
 	irvalue "github.com/llir/llvm/ir/value"
 	"golang.org/x/tools/go/ssa"
@@ -16,14 +17,17 @@ type Module struct {
 	// Input Go SSA package.
 	goPkg *ssa.Package
 
-	// Maps from global Go SSA value to corresponding LLVM IR value in the LLVM
-	// IR module being generated.
-	globals map[ssa.Value]irvalue.Value
 	// Maps from Go SSA type name to corresponding LLVM IR type definition in the
 	// LLVM IR module being generated.
 	types map[string]irtypes.Type
 	// Map from predeclared Go type name to LLVM IR type.
 	predeclaredTypes map[string]irtypes.Type
+	// Maps from Go SSA named constant to corresponding LLVM IR constant in the
+	// LLVM IR module being generated.
+	consts map[*ssa.NamedConst]irconstant.Constant
+	// Maps from global Go SSA value to corresponding LLVM IR value in the LLVM
+	// IR module being generated.
+	globals map[ssa.Value]irvalue.Value
 	// Map from predeclared Go function name to LLVM IR function.
 	predeclaredFuncs map[string]*ir.Func
 
@@ -43,9 +47,10 @@ func NewModule(goPkg *ssa.Package) *Module {
 	return &Module{
 		Module:           ir.NewModule(),
 		goPkg:            goPkg,
-		globals:          make(map[ssa.Value]irvalue.Value),
 		types:            make(map[string]irtypes.Type),
 		predeclaredTypes: make(map[string]irtypes.Type),
+		consts:           make(map[*ssa.NamedConst]irconstant.Constant),
+		globals:          make(map[ssa.Value]irvalue.Value),
 		predeclaredFuncs: make(map[string]*ir.Func),
 		strings:          make(map[string]*ir.Global),
 	}

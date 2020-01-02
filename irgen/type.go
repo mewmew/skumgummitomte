@@ -214,12 +214,16 @@ func (m *Module) irTypeFromGoBasicType(goType *gotypes.Basic) irtypes.Type {
 	case gotypes.UnsafePointer:
 		typeName = "unsafe.Pointer"
 	// TODO: figure out how to handle untyped values if/when needed.
-	// case gotypes.UntypedBool:
-	// case gotypes.UntypedInt:
+	case gotypes.UntypedBool:
+		typeName = "bool"
+	case gotypes.UntypedInt:
+		typeName = "int"
 	// case gotypes.UntypedRune:
-	// case gotypes.UntypedFloat:
+	case gotypes.UntypedFloat:
+		typeName = "float64"
 	// case gotypes.UntypedComplex:
-	// case gotypes.UntypedString:
+	case gotypes.UntypedString:
+		typeName = "string"
 	// case gotypes.UntypedNil:
 	default:
 		panic(fmt.Errorf("support for Go basic type kind %v not yet implemented", kind))

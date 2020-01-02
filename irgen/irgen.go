@@ -114,7 +114,10 @@ func CompilePackage(goPkg *ssa.Package) (*ir.Module, error) {
 func (m *Module) indexMember(goMember ssa.Member) error {
 	switch goMember := goMember.(type) {
 	case *ssa.NamedConst:
-		return m.indexNamedConst(goMember)
+		// TODO: evaluate if we need to index named constants or not before
+		// resolving them. What cycles may exist?
+		//return m.indexNamedConst(goMember)
+		return nil // ignore indexing *ssa.NamedConst for now
 	case *ssa.Global:
 		return m.indexGlobal(goMember)
 	case *ssa.Function:
@@ -139,8 +142,8 @@ func (m *Module) indexMember(goMember ssa.Member) error {
 func (m *Module) emitMember(goMember ssa.Member) error {
 	switch goMember := goMember.(type) {
 	// TODO: uncomment.
-	//case *ssa.NamedConst:
-	//	return m.emitNamedConst(goMember)
+	case *ssa.NamedConst:
+		return m.emitNamedConst(goMember)
 	case *ssa.Global:
 		return m.emitGlobal(goMember)
 	case *ssa.Function:

@@ -1,6 +1,11 @@
 package irgen
 
-import gotypes "go/types"
+import (
+	"fmt"
+	gotypes "go/types"
+
+	irtypes "github.com/llir/llvm/ir/types"
+)
 
 // ### [ Helper functions ] ####################################################
 
@@ -32,4 +37,32 @@ func (m *Module) fullName(v RelStringer) string {
 	}
 	// Fully qualified name (with package path).
 	return v.RelString(nil)
+}
+
+// precFromFloatKind return the precision of the given LLVM IR floating-point
+// kind, where precision specifies the number of bits in the mantissa (including
+// the implicit lead bit).
+func precFromFloatKind(kind irtypes.FloatKind) uint {
+	switch kind {
+	// 16-bit floating-point type (IEEE 754 half precision).
+	case irtypes.FloatKindHalf: // half
+		return 11
+	// 32-bit floating-point type (IEEE 754 single precision).
+	case irtypes.FloatKindFloat: // float
+		return 24
+	// 64-bit floating-point type (IEEE 754 double precision).
+	case irtypes.FloatKindDouble: // double
+		return 53
+	// 128-bit floating-point type (IEEE 754 quadruple precision).
+	case irtypes.FloatKindFP128: // fp128
+		return 113
+	// 80-bit floating-point type (x86 extended precision).
+	case irtypes.FloatKindX86_FP80: // x86_fp80
+		return 64
+	// 128-bit floating-point type (PowerPC double-double arithmetic).
+	case irtypes.FloatKindPPC_FP128: // ppc_fp128
+		return 106
+	default:
+		panic(fmt.Errorf("support for LLVM IR floating-point kind %v not yet implemented", kind))
+	}
 }
