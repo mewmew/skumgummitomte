@@ -7,7 +7,6 @@ import (
 	"github.com/llir/llvm/ir"
 	irconstant "github.com/llir/llvm/ir/constant"
 	irenum "github.com/llir/llvm/ir/enum"
-	"github.com/llir/llvm/ir/metadata"
 	irtypes "github.com/llir/llvm/ir/types"
 	irvalue "github.com/llir/llvm/ir/value"
 	"github.com/pkg/errors"
@@ -233,16 +232,7 @@ func (fn *Func) emitAlloc(goInst *ssa.Alloc) error {
 	fn.locals[goInst] = inst
 	// Add local variable name metadata attachment to alloca instruction.
 	if len(goInst.Comment) > 0 {
-		mdLocalName := &metadata.Attachment{
-			Name: "var_name",
-			Node: &metadata.Tuple{
-				MetadataID: -1, // metadata literal.
-				Fields: []metadata.Field{
-					&metadata.String{Value: goInst.Comment},
-				},
-			},
-		}
-		inst.Metadata = append(inst.Metadata, mdLocalName)
+		addMetadata(inst, "var_name", goInst.Comment)
 	}
 	dbg.Println("   inst:", inst)
 	// The space of a stack allocated local variable is re-initialized to zero
@@ -304,16 +294,7 @@ func (fn *Func) emitNew(goInst *ssa.Alloc) error {
 	fn.locals[goInst] = inst
 	// Add local variable name metadata attachment to alloca instruction.
 	if len(goInst.Comment) > 0 {
-		mdLocalName := &metadata.Attachment{
-			Name: "var_name",
-			Node: &metadata.Tuple{
-				MetadataID: -1, // metadata literal.
-				Fields: []metadata.Field{
-					&metadata.String{Value: goInst.Comment},
-				},
-			},
-		}
-		inst.Metadata = append(inst.Metadata, mdLocalName)
+		addMetadata(inst, "var_name", goInst.Comment)
 	}
 	dbg.Println("   inst:", inst)
 	return nil
@@ -330,24 +311,17 @@ func (fn *Func) emitBinOp(goInst *ssa.BinOp) error {
 	dbg.Println("   x:", x)
 	y := fn.useValue(goInst.Y)
 	dbg.Println("   y:", y)
-	var isInt, isFloat bool
-	switch x.Type().(type) {
-	case *irtypes.IntType:
-		isInt = true
-	case *irtypes.FloatType:
-		isFloat = true
-	default:
-		panic(fmt.Errorf("support for operand type %T of Go SSA binary operation instruction (%v) not yet implemented", x.Type(), goInst.Op))
-	}
 	var inst irValueInstruction
 	switch goInst.Op {
 	// ADD (+)
 	case token.ADD: // +
-		switch {
-		case isInt:
+		switch x.Type().(type) {
+		case *irtypes.IntType:
 			inst = fn.cur.NewAdd(x, y)
-		case isFloat:
+		case *irtypes.FloatType:
 			inst = fn.cur.NewFAdd(x, y)
+		default:
+			panic(fmt.Errorf("support for operand type %T of Go SSA binary operation instruction (%v) not yet implemented", x.Type(), goInst.Op))
 		}
 	// SUB (-)
 	case token.SUB: // -
@@ -401,6 +375,8 @@ func (fn *Func) emitBinOp(goInst *ssa.BinOp) error {
 		panic(fmt.Errorf("support for Go SSA binary operation instruction token %v not yet implemented", goInst.Op))
 	}
 	inst.SetName(goInst.Name())
+	// Add binary operation token metadata attachment to instruction.
+	addMetadata(inst, "binary_op", goInst.Op.String())
 	fn.locals[goInst] = inst
 	dbg.Println("   inst:", inst.LLString())
 	return nil
@@ -463,33 +439,54 @@ func (fn *Func) emitUnOp(goInst *ssa.UnOp) error {
 	dbg.Println("   op:", goInst.Op)
 	x := fn.useValue(goInst.X)
 	dbg.Println("   x:", x)
+	var inst irValueInstruction
 	switch goInst.Op {
 	// Logical negation.
 	case token.NOT: // !
-		panic("support for Go SSA unary operation instruction token NOT (!) not yet implemented")
+		inst = fn.cur.NewXor(x, irconstant.True)
 	// Negation.
 	case token.SUB: // -
-		panic("support for Go SSA unary operation instruction token SUB (-) not yet implemented")
+		// Note that the `sub` instruction is used to represent the `neg`
+		// instruction present in most other intermediate representations.
+		switch typ := x.Type().(type) {
+		case *irtypes.IntType:
+			zero := irconstant.NewInt(typ, 0)
+			inst = fn.cur.NewSub(zero, x)
+		case *irtypes.FloatType:
+			zero := irconstant.NewFloat(typ, 0)
+			inst = fn.cur.NewFSub(zero, x)
+		default:
+			panic(fmt.Errorf("support for operand type %T of Go SSA binary operation instruction (%v) not yet implemented", x.Type(), goInst.Op))
+		}
 	// Channel receive.
 	case token.ARROW: // <-
 		if goInst.CommaOk {
 			// The result is a 2-tuple of the value and a boolean indicating the
 			// success of the receive. The components of the tuple are accessed
 			// using Extract.
+			panic("support for comma-ok of Go SSA unary operation instruction token ARROW (<-) not yet implemented")
 		}
 		panic("support for Go SSA unary operation instruction token ARROW (<-) not yet implemented")
 	// Pointer indirection (load).
 	case token.MUL: // *
 		elemType := x.Type().(*irtypes.PointerType).ElemType
-		inst := fn.cur.NewLoad(elemType, x)
-		inst.SetName(goInst.Name())
-		fn.locals[goInst] = inst
-		dbg.Println("   inst:", inst.LLString())
-		return nil
+		inst = fn.cur.NewLoad(elemType, x)
 	// Bitwise complement.
 	case token.XOR: // ^
-		panic("support for Go SSA unary operation instruction token XOR (^) not yet implemented")
+		switch typ := x.Type().(type) {
+		case *irtypes.IntType:
+			zero := irconstant.NewInt(typ, 0)
+			inst = fn.cur.NewXor(x, zero)
+		default:
+			panic(fmt.Errorf("support for operand type %T of Go SSA binary operation instruction (%v) not yet implemented", x.Type(), goInst.Op))
+		}
 	default:
 		panic(fmt.Errorf("support for Go SSA unary operation instruction token %v not yet implemented", goInst.Op))
 	}
+	inst.SetName(goInst.Name())
+	// Add unary operation token metadata attachment to instruction.
+	addMetadata(inst, "unary_op", goInst.Op.String())
+	fn.locals[goInst] = inst
+	dbg.Println("   inst:", inst.LLString())
+	return nil
 }
