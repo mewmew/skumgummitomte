@@ -232,9 +232,29 @@ func (m *Module) emitFunc(goFunc *ssa.Function) error {
 	// Process basic blocks in dominator tree preorder.
 	// TODO: ensure stable sorting of basic blocks with equal dominance (sort by
 	// basic block index).
-	for _, goBlock := range goFunc.DomPreorder() {
-		if err := fn.emitBlock(goBlock); err != nil {
-			return errors.WithStack(err)
+	done := make(map[*ssa.BasicBlock]bool)
+	goBlocks := goFunc.DomPreorder()
+	for len(done) < len(goBlocks) {
+		prev := len(done)
+	loop:
+		for _, goBlock := range goBlocks {
+			if done[goBlock] {
+				continue
+			}
+			// Check that all predecessors of goBlock are emitted prior to emitting
+			// goBlock.
+			for _, goPred := range goBlock.Preds {
+				if !done[goPred] {
+					continue loop
+				}
+			}
+			done[goBlock] = true
+			if err := fn.emitBlock(goBlock); err != nil {
+				return errors.WithStack(err)
+			}
+		}
+		if prev == len(done) {
+			panic(fmt.Errorf("unable to process basic blocks of %q; cyclic predecessor dependency detected", m.fullName(goFunc)))
 		}
 	}
 
