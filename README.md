@@ -91,7 +91,7 @@ $ lli main.ll
 # test
 ```
 
-### Multiple results
+### Multiple return values
 
 Compile and run `main` program [examples/multiple_results](examples/multiple_results/main.go).
 ```bash
