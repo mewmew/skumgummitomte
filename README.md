@@ -77,3 +77,16 @@ $ lli main.ll
 #
 # p.Foo
 ```
+
+### Named constants
+
+Compile and run `main` program [examples/consts/cmd/foo](examples/consts/cmd/foo/main.go) importing Go package [examples/consts/p](examples/consts/p/p.go).
+```bash
+$ sgt -o foo.ll ./examples/consts/cmd/foo
+$ sgt -o p.ll ./examples/consts/p
+$ llvm-link -S -o main.ll foo.ll p.ll std/builtin.ll
+$ lli main.ll
+# Output:
+#
+# test
+```
