@@ -96,7 +96,7 @@ func sgt(w io.Writer, pkgPaths []string) error {
 		return errors.Errorf("packages contain errors (%s)", strings.Join(pkgPaths, ", "))
 	}
 	// Create SSA packages of Go packages.
-	mode := ssa.PrintFunctions | ssa.NaiveForm
+	mode := ssa.NaiveForm
 	prog, pkgs := ssautil.AllPackages(initial, mode)
 	// Build SSA code for all Go packages.
 	prog.Build()
