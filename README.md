@@ -10,6 +10,7 @@ go get github.com/mewmew/skumgummitomte/cmd/sgt
 
 ## Example
 
+### "hello world"
 
 Compile and run [examples/hello/hello.go](examples/hello/hello.go).
 ```bash
@@ -21,6 +22,8 @@ $ lli main.ll
 # hello world
 ```
 
+### Local variables
+
 Compile and run [examples/locals/locals.go](examples/locals/locals.go).
 ```bash
 $ sgt -o locals.ll examples/locals/locals.go
@@ -29,6 +32,8 @@ $ lli locals.ll ; echo $?
 #
 # 42
 ```
+
+### Closures
 
 Compile and run [examples/closures/closures.go](examples/closures/closures.go).
 ```bash
@@ -40,10 +45,14 @@ $ lli main.ll
 # lol
 ```
 
+### Type definitions
+
 Compile [examples/types/types.go](examples/types/types.go).
 ```bash
 $ sgt -o types.ll examples/types/types.go
 ```
+
+### Methods
 
 Compile and run [examples/methods/methods.go](examples/methods/methods.go).
 ```bash
@@ -54,4 +63,17 @@ $ lli main.ll
 #
 # T.M1
 # T.M2
+```
+
+### Package imports
+
+Compile and run `main` program [examples/imports/cmd/foo](examples/imports/cmd/foo/main.go) importing Go package [examples/imports/p](examples/imports/p/p.go).
+```bash
+$ sgt -o foo.ll ./examples/imports/cmd/foo
+$ sgt -o p.ll ./examples/imports/p
+$ llvm-link -S -o main.ll foo.ll p.ll std/builtin.ll
+$ lli main.ll
+# Output:
+#
+# p.Foo
 ```
