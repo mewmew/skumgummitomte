@@ -350,7 +350,7 @@ func (m *Module) emitType(goType *ssa.Type) error {
 	// the type definition name (with the risk of resetting the name of a
 	// previous type definition), but allows sharing the underlying types.
 	typ := copyTypeShallow(underlying)
-	typ.SetName(goType.Name())
+	typ.SetName(m.fullName(goType))
 	dbg.Printf("   typ: %s = type %s", typ.String(), typ.LLString())
 	m.types[typ.Name()] = typ
 	m.TypeDefs = append(m.TypeDefs, typ)
