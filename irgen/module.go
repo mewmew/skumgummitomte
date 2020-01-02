@@ -20,8 +20,6 @@ type Module struct {
 	// Maps from Go SSA type name to corresponding LLVM IR type definition in the
 	// LLVM IR module being generated.
 	types map[string]irtypes.Type
-	// Map from predeclared Go type name to LLVM IR type.
-	predeclaredTypes map[string]irtypes.Type
 	// Maps from Go SSA named constant to corresponding LLVM IR constant in the
 	// LLVM IR module being generated.
 	consts map[*ssa.NamedConst]irconstant.Constant
@@ -48,7 +46,6 @@ func NewModule(goPkg *ssa.Package) *Module {
 		Module:           ir.NewModule(),
 		goPkg:            goPkg,
 		types:            make(map[string]irtypes.Type),
-		predeclaredTypes: make(map[string]irtypes.Type),
 		consts:           make(map[*ssa.NamedConst]irconstant.Constant),
 		globals:          make(map[ssa.Value]irvalue.Value),
 		predeclaredFuncs: make(map[string]*ir.Func),

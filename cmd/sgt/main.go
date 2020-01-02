@@ -77,14 +77,14 @@ func main() {
 	// TODO: figure out a better way to specify output path, as we want each Go
 	// package to be written to a dedicated LLVM IR module. Perhaps specify
 	// output directory?
-	if err := sgt(w, pkgPaths); err != nil {
+	if err := sgt(w, pkgPaths, quiet); err != nil {
 		log.Fatalf("%+v", err)
 	}
 }
 
 // sgt compiles the Go packages specified by package path patterns into LLVM IR
 // modules.
-func sgt(w io.Writer, pkgPaths []string) error {
+func sgt(w io.Writer, pkgPaths []string, quiet bool) error {
 	// Parse and type-check Go packages.
 	cfg := &packages.Config{Mode: packages.LoadAllSyntax}
 	initial, err := packages.Load(cfg, pkgPaths...)
@@ -97,6 +97,10 @@ func sgt(w io.Writer, pkgPaths []string) error {
 	}
 	// Create SSA packages of Go packages.
 	mode := ssa.NaiveForm
+	if !quiet {
+		mode |= ssa.PrintPackages
+		mode |= ssa.PrintFunctions
+	}
 	prog, pkgs := ssautil.AllPackages(initial, mode)
 	// Build SSA code for all Go packages.
 	prog.Build()

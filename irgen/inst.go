@@ -821,7 +821,14 @@ func (fn *Func) emitFieldAddr(goInst *ssa.FieldAddr) error {
 	// *struct
 	case *irtypes.PointerType:
 		zero := irconstant.NewInt(irtypes.I64, 0)
-		field := irconstant.NewInt(irtypes.I64, int64(goInst.Field))
+		// Must use i32 instead of i64 when indexing into struct types.
+		//
+		// ref: https://llvm.org/docs/LangRef.html#getelementptr-instruction
+		//
+		// > The type of each index argument depends on the type it is indexing
+		// > into. When indexing into a (optionally packed) structure, only i32
+		// > integer constants are allowed
+		field := irconstant.NewInt(irtypes.I32, int64(goInst.Field))
 		indices := []irvalue.Value{
 			zero,
 			field,

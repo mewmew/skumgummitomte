@@ -28,8 +28,8 @@ type RelStringer interface {
 	RelString(from *gotypes.Package) string
 }
 
-// fullName returns the full name of the value, qualified by package name,
-// receiver type, etc.
+// fullName returns the full name of the value, qualified by package name if not
+// in main package.
 func (m *Module) fullName(v RelStringer) string {
 	if m.goPkg.Pkg.Name() == "main" {
 		// Fully qualified name if global is imported, otherwise name without
@@ -39,6 +39,19 @@ func (m *Module) fullName(v RelStringer) string {
 	}
 	// Fully qualified name (with package path).
 	return v.RelString(nil)
+}
+
+// fullTypeName returns the full name of the type, qualified by package name if
+// not in main package.
+func (m *Module) fullTypeName(t gotypes.Type) string {
+	if m.goPkg.Pkg.Name() == "main" {
+		// Fully qualified name if type is imported, otherwise name without
+		// package path.
+		from := m.goPkg.Pkg
+		return gotypes.TypeString(t, gotypes.RelativeTo(from))
+	}
+	// Fully qualified name (with package path).
+	return gotypes.TypeString(t, nil)
 }
 
 // precFromFloatKind return the precision of the given LLVM IR floating-point

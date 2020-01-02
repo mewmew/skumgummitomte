@@ -16,63 +16,63 @@ func (m *Module) initPredeclaredTypes() {
 	// boolean type.
 	boolType := irtypes.NewInt(1)
 	boolType.SetName("bool")
-	m.predeclaredTypes[boolType.Name()] = boolType
+	m.types[boolType.Name()] = boolType
 	m.Module.TypeDefs = append(m.Module.TypeDefs, boolType)
 	// signed integer types.
 	intType := irtypes.NewInt(64) // default to 64-bit integer types.
 	intType.SetName("int")
-	m.predeclaredTypes[intType.Name()] = intType
+	m.types[intType.Name()] = intType
 	m.Module.TypeDefs = append(m.Module.TypeDefs, intType)
 	int8Type := irtypes.NewInt(8)
 	int8Type.SetName("int8")
-	m.predeclaredTypes[int8Type.Name()] = int8Type
+	m.types[int8Type.Name()] = int8Type
 	m.Module.TypeDefs = append(m.Module.TypeDefs, int8Type)
 	int16Type := irtypes.NewInt(16)
 	int16Type.SetName("int16")
-	m.predeclaredTypes[int16Type.Name()] = int16Type
+	m.types[int16Type.Name()] = int16Type
 	m.Module.TypeDefs = append(m.Module.TypeDefs, int16Type)
 	int32Type := irtypes.NewInt(32)
 	int32Type.SetName("int32")
-	m.predeclaredTypes[int32Type.Name()] = int32Type
+	m.types[int32Type.Name()] = int32Type
 	m.Module.TypeDefs = append(m.Module.TypeDefs, int32Type)
 	int64Type := irtypes.NewInt(64)
 	int64Type.SetName("int64")
-	m.predeclaredTypes[int64Type.Name()] = int64Type
+	m.types[int64Type.Name()] = int64Type
 	m.Module.TypeDefs = append(m.Module.TypeDefs, int64Type)
 	// unsigned integer types.
 	uintType := irtypes.NewInt(64) // default to 64-bit integer types.
 	uintType.SetName("uint")
-	m.predeclaredTypes[uintType.Name()] = uintType
+	m.types[uintType.Name()] = uintType
 	m.Module.TypeDefs = append(m.Module.TypeDefs, uintType)
 	uint8Type := irtypes.NewInt(8)
 	uint8Type.SetName("uint8")
-	m.predeclaredTypes[uint8Type.Name()] = uint8Type
+	m.types[uint8Type.Name()] = uint8Type
 	m.Module.TypeDefs = append(m.Module.TypeDefs, uint8Type)
 	uint16Type := irtypes.NewInt(16)
 	uint16Type.SetName("uint16")
-	m.predeclaredTypes[uint16Type.Name()] = uint16Type
+	m.types[uint16Type.Name()] = uint16Type
 	m.Module.TypeDefs = append(m.Module.TypeDefs, uint16Type)
 	uint32Type := irtypes.NewInt(32)
 	uint32Type.SetName("uint32")
-	m.predeclaredTypes[uint32Type.Name()] = uint32Type
+	m.types[uint32Type.Name()] = uint32Type
 	m.Module.TypeDefs = append(m.Module.TypeDefs, uint32Type)
 	uint64Type := irtypes.NewInt(64)
 	uint64Type.SetName("uint64")
-	m.predeclaredTypes[uint64Type.Name()] = uint64Type
+	m.types[uint64Type.Name()] = uint64Type
 	m.Module.TypeDefs = append(m.Module.TypeDefs, uint64Type)
 	// unsigned integer pointer type.
 	uintptrType := irtypes.NewInt(64) // default to 64-bit pointer types.
 	uintptrType.SetName("uintptr")
-	m.predeclaredTypes[uintptrType.Name()] = uintptrType
+	m.types[uintptrType.Name()] = uintptrType
 	m.Module.TypeDefs = append(m.Module.TypeDefs, uintptrType)
 	// floating-point types.
 	float32Type := &irtypes.FloatType{Kind: irtypes.FloatKindFloat}
 	float32Type.SetName("float32")
-	m.predeclaredTypes[float32Type.Name()] = float32Type
+	m.types[float32Type.Name()] = float32Type
 	m.Module.TypeDefs = append(m.Module.TypeDefs, float32Type)
 	float64Type := &irtypes.FloatType{Kind: irtypes.FloatKindDouble}
 	float64Type.SetName("float64")
-	m.predeclaredTypes[float64Type.Name()] = float64Type
+	m.types[float64Type.Name()] = float64Type
 	m.Module.TypeDefs = append(m.Module.TypeDefs, float64Type)
 	// complex types.
 	// TODO: add support for LLVM IR structure types with field names.
@@ -82,7 +82,7 @@ func (m *Module) initPredeclaredTypes() {
 	//)
 	complex64Type := irtypes.NewStruct(float32Type, float32Type)
 	complex64Type.SetName("complex64")
-	m.predeclaredTypes[complex64Type.Name()] = complex64Type
+	m.types[complex64Type.Name()] = complex64Type
 	m.Module.TypeDefs = append(m.Module.TypeDefs, complex64Type)
 	// TODO: add support for LLVM IR structure types with field names.
 	//complex128Type = NewStruct(
@@ -91,7 +91,7 @@ func (m *Module) initPredeclaredTypes() {
 	//)
 	complex128Type := irtypes.NewStruct(float64Type, float64Type)
 	complex128Type.SetName("complex128")
-	m.predeclaredTypes[complex128Type.Name()] = complex128Type
+	m.types[complex128Type.Name()] = complex128Type
 	m.Module.TypeDefs = append(m.Module.TypeDefs, complex128Type)
 	// string type.
 	// TODO: add support for LLVM IR structure types with field names.
@@ -101,23 +101,30 @@ func (m *Module) initPredeclaredTypes() {
 	//)
 	stringType := irtypes.NewStruct(irtypes.NewPointer(irtypes.NewInt(8)), intType)
 	stringType.SetName("string")
-	m.predeclaredTypes[stringType.Name()] = stringType
+	m.types[stringType.Name()] = stringType
 	m.Module.TypeDefs = append(m.Module.TypeDefs, stringType)
-	// unsafe pointer types.
+	// unsafe pointer type.
 	unsafePointerType := irtypes.NewPointer(irtypes.NewInt(8)) // void*
 	unsafePointerType.SetName("unsafe.Pointer")
-	m.predeclaredTypes[unsafePointerType.Name()] = unsafePointerType
+	m.types[unsafePointerType.Name()] = unsafePointerType
 	m.Module.TypeDefs = append(m.Module.TypeDefs, unsafePointerType)
+	// error interface type.
+	// TODO: figure out how to define interface types.
+	// TODO: add support for LLVM IR structure types with field names.
+	//errorType = NewStruct(
+	//   Field{Name: "type", Type: irtypes.I8Ptr},
+	//   Field{Name: "value", Type: irtypes.I8Ptr},
+	//)
+	errorType := irtypes.NewStruct(irtypes.I8Ptr, irtypes.I8Ptr)
+	errorType.SetName("error")
+	m.types[errorType.Name()] = errorType
+	m.Module.TypeDefs = append(m.Module.TypeDefs, errorType)
 }
 
 // --- [ get ] -----------------------------------------------------------------
 
 // irTypeFromName returns the LLVM IR type for the corresponding Go type name.
 func (m *Module) irTypeFromName(typeName string) irtypes.Type {
-	// TODO: handle shadowing of predeclared types based on scope.
-	if typ, ok := m.predeclaredTypes[typeName]; ok {
-		return typ
-	}
 	if typ, ok := m.types[typeName]; ok {
 		return typ
 	}
@@ -146,7 +153,8 @@ func (m *Module) irTypeFromGo(goType gotypes.Type) irtypes.Type {
 	case *gotypes.Map:
 		panic("support for *gotypes.Map not yet implemented")
 	case *gotypes.Named:
-		return m.irTypeFromName(goType.Obj().Id())
+		typeName := m.fullTypeName(goType)
+		return m.irTypeFromName(typeName)
 	case *gotypes.Pointer:
 		return m.irTypeFromGoPointerType(goType)
 	case *gotypes.Signature:
@@ -356,6 +364,12 @@ func (m *Module) indexType(goType *ssa.Type) error {
 // emitting to m.
 func (m *Module) emitType(goType *ssa.Type) error {
 	dbg.Println("emitType")
+	typeName := m.fullName(goType)
+	dbg.Println("   typeName:", typeName)
+	if _, ok := m.types[typeName]; ok {
+		// type definition already present.
+		return nil
+	}
 	underlying := m.irTypeFromGo(goType.Type().Underlying())
 	// Perform a deep copy of the underlying type. Otherwise, we may reset the
 	// name of a previously named type.
@@ -364,7 +378,7 @@ func (m *Module) emitType(goType *ssa.Type) error {
 	// the type definition name (with the risk of resetting the name of a
 	// previous type definition), but allows sharing the underlying types.
 	typ := copyTypeShallow(underlying)
-	typ.SetName(m.fullName(goType))
+	typ.SetName(typeName)
 	dbg.Printf("   typ: %s = type %s", typ.String(), typ.LLString())
 	m.types[typ.Name()] = typ
 	m.TypeDefs = append(m.TypeDefs, typ)

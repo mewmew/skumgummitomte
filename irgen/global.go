@@ -5,6 +5,7 @@ import (
 
 	"github.com/llir/llvm/ir"
 	irconstant "github.com/llir/llvm/ir/constant"
+	irenum "github.com/llir/llvm/ir/enum"
 	"golang.org/x/tools/go/ssa"
 )
 
@@ -28,11 +29,16 @@ func (m *Module) getGlobal(goGlobal *ssa.Global) *ir.Global {
 // --- [ index ] ---------------------------------------------------------------
 
 // indexGlobal indexes the given Go SSA global, creating a corresponding LLVM IR
-// global variable, emitting to m.
-func (m *Module) indexGlobal(goGlobal *ssa.Global) error {
+// global variable, emitting to m. The external boolean indicates whether the
+// global variable is defined in an external Go package.
+func (m *Module) indexGlobal(goGlobal *ssa.Global, external bool) error {
 	// Generate LLVM IR global variable declaration, emitting to m.
 	globalType := m.irTypeFromGo(goGlobal.Type())
 	global := m.Module.NewGlobal(m.fullName(goGlobal), globalType)
+	// Add external linkage to global variable defined in external Go package.
+	if external {
+		global.Linkage = irenum.LinkageExternal
+	}
 	// Index LLVM IR global variable declaration.
 	m.globals[goGlobal] = global
 	return nil
