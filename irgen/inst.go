@@ -209,6 +209,7 @@ func (fn *Func) emitReturn(goInst *ssa.Return) error {
 			return errors.Errorf("mismatch between number of results in function signature (%d) and function return values (%d) in function %q", len(structType.Fields), len(results))
 		}
 		alloca := fn.entry.NewAlloca(structType)
+		fn.cur.NewStore(irconstant.NewZeroInitializer(structType), alloca)
 		var ret irValueInstruction = fn.cur.NewLoad(structType, alloca)
 		for index, result := range results {
 			ret = fn.cur.NewInsertValue(ret, result, uint64(index))
