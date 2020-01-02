@@ -90,3 +90,16 @@ $ lli main.ll
 #
 # test
 ```
+
+### Multiple results
+
+Compile and run `main` program [examples/multiple_results](examples/multiple_results/main.go).
+```bash
+$ sgt -o multiple_results.ll ./examples/multiple_results
+$ llvm-link -S -o main.ll multiple_results.ll std/builtin.ll
+$ lli main.ll
+# Output:
+#
+# bar
+# foo
+```
