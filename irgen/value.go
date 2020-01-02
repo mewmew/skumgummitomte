@@ -108,30 +108,47 @@ func (m *Module) irValueFromGoConst(goConst *ssa.Const) irconstant.Constant {
 	goVal := goconstant.Val(goConst.Value)
 	dbg.Println("   goVal:", goVal)
 	switch goVal := goVal.(type) {
+	// boolean literal
 	case bool:
 		return irconstant.NewBool(goVal)
-	case int64:
-		return irconstant.NewInt(typ.(*irtypes.IntType), goVal)
+	// string literal
 	case string:
 		return m.irValueFromGoStringLit(typ, goVal)
-	case nil:
-		// Check constant kind for nil values, as go/constant.Val returns nil also
-		// for complex constant literals.
-		switch kind := goConst.Value.Kind(); kind {
-		default:
-			panic(fmt.Errorf("support for Go constant kind %v not yet implemented", kind))
+	// integer literal
+	case int64:
+		return irconstant.NewInt(typ.(*irtypes.IntType), goVal)
+	case *big.Int:
+		x := big.NewInt(0).Set(goVal)
+		return &irconstant.Int{
+			Typ: typ.(*irtypes.IntType),
+			X:   x,
 		}
+	// floating-point literal
 	case *big.Rat:
-		floatType, ok := typ.(*irtypes.FloatType)
-		if !ok {
-			panic(fmt.Errorf("invalid type of Go constant *big.Rat; expected *irtypes.FloatType, got %T", typ))
-		}
+		floatType := typ.(*irtypes.FloatType)
 		prec := precFromFloatKind(floatType.Kind)
 		x := big.NewFloat(0).SetPrec(prec)
 		x.SetRat(goVal)
 		return &irconstant.Float{
 			Typ: floatType,
 			X:   x,
+		}
+	case *big.Float:
+		floatType := typ.(*irtypes.FloatType)
+		prec := precFromFloatKind(floatType.Kind)
+		x := big.NewFloat(0).SetPrec(prec)
+		x.Set(goVal)
+		return &irconstant.Float{
+			Typ: floatType,
+			X:   x,
+		}
+	// kind of everything else is nil
+	case nil:
+		// Check constant kind for nil values, as go/constant.Val returns nil also
+		// for complex constant literals.
+		switch kind := goConst.Value.Kind(); kind {
+		default:
+			panic(fmt.Errorf("support for Go constant kind %v not yet implemented", kind))
 		}
 	default:
 		panic(fmt.Errorf("support for Go constant %T not yet implemented", goVal))
