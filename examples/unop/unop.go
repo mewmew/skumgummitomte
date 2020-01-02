@@ -64,12 +64,14 @@ func deref(p *int) int {
 //    x := <-ch
 //    x, ok := <-ch
 
-func recv(ch chan int) int {
-	x := <-ch
-	return x
-}
+// TODO: uncomment
+//func recv(ch chan int) int {
+//	x := <-ch
+//	return x
+//}
 
-func recvok(ch chan int) (int, bool) {
-	x, ok := <-ch
-	return x, ok
-}
+// TODO: uncomment
+//func recvok(ch chan int) (int, bool) {
+//	x, ok := <-ch
+//	return x, ok
+//}
