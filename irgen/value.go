@@ -4,6 +4,7 @@ import (
 	"fmt"
 	goconstant "go/constant"
 	"math/big"
+	"strconv"
 
 	"github.com/llir/llvm/ir"
 	irconstant "github.com/llir/llvm/ir/constant"
@@ -116,7 +117,19 @@ func (m *Module) irValueFromGoConst(goConst *ssa.Const) irconstant.Constant {
 		return m.irValueFromGoStringLit(typ, goVal)
 	// integer literal
 	case int64:
-		return irconstant.NewInt(typ.(*irtypes.IntType), goVal)
+		switch typ := typ.(type) {
+		case *irtypes.IntType:
+			return irconstant.NewInt(typ, goVal)
+		case *irtypes.FloatType:
+			s := strconv.FormatInt(goVal, 10) + ".0"
+			c, err := irconstant.NewFloatFromString(typ, s)
+			if err != nil {
+				panic(fmt.Errorf("unable to parse floating-point literal %q", s))
+			}
+			return c
+		default:
+			panic(fmt.Errorf("support for integer literal of type %T not yet implemented", typ))
+		}
 	case *big.Int:
 		x := big.NewInt(0).Set(goVal)
 		return &irconstant.Int{
