@@ -126,7 +126,7 @@ func (m *Module) getFunc(goFunc *ssa.Function) *ir.Func {
 	if !ok {
 		// Pre-condition invalidated, function declaration not indexed. This is a
 		// fatal error and indicates a bug in irgen.
-		panic(fmt.Errorf("unable to locate indexed LLVM IR function declaration of Go SSA function %q", m.funcName(goFunc)))
+		panic(fmt.Errorf("unable to locate indexed LLVM IR function declaration of Go SSA function %q", m.fullName(goFunc)))
 	}
 	return global.(*ir.Func)
 }
@@ -185,7 +185,7 @@ func (m *Module) indexFunc(goFunc *ssa.Function) error {
 		retType = irtypes.NewStruct(resultTypes...)
 	}
 	// Generate LLVM IR function declaration, emitting to m.
-	f := m.Module.NewFunc(m.funcName(goFunc), retType, params...)
+	f := m.Module.NewFunc(m.fullName(goFunc), retType, params...)
 	f.Sig.Variadic = goFunc.Signature.Variadic()
 	// Index LLVM IR function declaration.
 	m.globals[goFunc] = f
@@ -245,19 +245,4 @@ func (m *Module) emitFunc(goFunc *ssa.Function) error {
 		}
 	}
 	return nil
-}
-
-// ### [ Helper functions ] ####################################################
-
-// funcName returns the full name of the function, qualified by package name,
-// receiver type, etc.
-func (m *Module) funcName(goFunc *ssa.Function) string {
-	if m.goPkg.Pkg.Name() == "main" {
-		// Fully qualified function name if function is imported, otherwise
-		// function name without package path.
-		from := m.goPkg.Pkg
-		return goFunc.RelString(from)
-	}
-	// Fully qualified function name (with package path).
-	return goFunc.RelString(nil)
 }

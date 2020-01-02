@@ -20,7 +20,7 @@ func (m *Module) getGlobal(goGlobal *ssa.Global) *ir.Global {
 	if !ok {
 		// Pre-condition invalidated, global not indexed. This is a fatal error
 		// and indicates a bug in irgen.
-		panic(fmt.Errorf("unable to locate indexed LLVM IR global of Go SSA global %q", goGlobal.Name()))
+		panic(fmt.Errorf("unable to locate indexed LLVM IR global of Go SSA global %q", m.fullName(goGlobal)))
 	}
 	return global.(*ir.Global)
 }
@@ -32,7 +32,7 @@ func (m *Module) getGlobal(goGlobal *ssa.Global) *ir.Global {
 func (m *Module) indexGlobal(goGlobal *ssa.Global) error {
 	// Generate LLVM IR global variable declaration, emitting to m.
 	globalType := m.irTypeFromGo(goGlobal.Type())
-	global := m.Module.NewGlobal(goGlobal.Name(), globalType)
+	global := m.Module.NewGlobal(m.fullName(goGlobal), globalType)
 	// Index LLVM IR global variable declaration.
 	m.globals[goGlobal] = global
 	return nil

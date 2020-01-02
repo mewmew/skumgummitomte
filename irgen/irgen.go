@@ -25,6 +25,8 @@ var (
 
 // CompilePackage compiles the given Go SSA package into an LLVM IR module.
 func CompilePackage(goPkg *ssa.Package) (*ir.Module, error) {
+	dbg.Println("CompilePackage")
+	dbg.Println("   goPkg:", goPkg.Pkg.Name())
 	// TODO: remove debug output.
 	goPkg.WriteTo(os.Stdout)
 	// Create LLVM IR module generator for the given Go SSA package.
@@ -62,7 +64,7 @@ func CompilePackage(goPkg *ssa.Package) (*ir.Module, error) {
 		goFuncs = append(goFuncs, goFunc)
 	}
 	sort.Slice(goFuncs, func(i, j int) bool {
-		return m.funcName(goFuncs[i]) < m.funcName(goFuncs[j])
+		return m.fullName(goFuncs[i]) < m.fullName(goFuncs[j])
 	})
 	// Index functions of Go SSA package.
 	for _, goFunc := range goFuncs {
@@ -86,6 +88,10 @@ func CompilePackage(goPkg *ssa.Package) (*ir.Module, error) {
 	}
 	// Compile functions of Go SSA package.
 	for _, goFunc := range goFuncs {
+		// Only compile function body of definitions in goPkg.
+		if goFunc.Pkg != goPkg {
+			continue
+		}
 		if err := m.emitFunc(goFunc); err != nil {
 			return nil, errors.WithStack(err)
 		}
