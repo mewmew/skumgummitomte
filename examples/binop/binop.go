@@ -163,17 +163,20 @@ func equalFloat(x, y float64) bool {
 	return x == y
 }
 
-func equalComplex(x, y complex128) bool {
-	return x == y
-}
+// TODO: uncomment
+//func equalComplex(x, y complex128) bool {
+//	return x == y
+//}
 
-func equalString(x, y string) bool {
-	return x == y
-}
+// TODO: uncomment
+//func equalString(x, y string) bool {
+//	return x == y
+//}
 
-func equalPointer(x, y *int) bool {
-	return x == y
-}
+// TODO: uncomment
+//func equalPointer(x, y *int) bool {
+//	return x == y
+//}
 
 // TODO: uncomment
 //func equalChannel(x, y chan int) bool {
@@ -185,26 +188,30 @@ func equalPointer(x, y *int) bool {
 //	return x == y
 //}
 
-func equalStruct(x, y struct{ A int; B float64 }) bool {
-	return x == y
-}
+// TODO: uncomment
+//func equalStruct(x, y struct{ A int; B float64 }) bool {
+//	return x == y
+//}
 
-func equalArray(x, y [10]int) bool {
-	return x == y
-}
+// TODO: uncomment
+//func equalArray(x, y [10]int) bool {
+//	return x == y
+//}
 
-func equalSliceNil(x []int) bool {
-	return x == nil
-}
+// TODO: uncomment
+//func equalSliceNil(x []int) bool {
+//	return x == nil
+//}
 
 // TODO: uncomment
 //func equalMapNil(x map[int]float64) bool {
 //	return x == nil
 //}
 
-func equalFuncNil(x func() int) bool {
-	return x == nil
-}
+// TODO: uncomment
+//func equalFuncNil(x func() int) bool {
+//	return x == nil
+//}
 
 // --- [ not equal ] -----------------------------------------------------------
 
@@ -220,17 +227,20 @@ func notEqualFloat(x, y float64) bool {
 	return x != y
 }
 
-func notEqualComplex(x, y complex128) bool {
-	return x != y
-}
+// TODO: uncomment
+//func notEqualComplex(x, y complex128) bool {
+//	return x != y
+//}
 
-func notEqualString(x, y string) bool {
-	return x != y
-}
+// TODO: uncomment
+//func notEqualString(x, y string) bool {
+//	return x != y
+//}
 
-func notEqualPointer(x, y *int) bool {
-	return x != y
-}
+// TODO: uncomment
+//func notEqualPointer(x, y *int) bool {
+//	return x != y
+//}
 
 // TODO: uncomment
 //func notEqualChannel(x, y chan int) bool {
@@ -242,26 +252,30 @@ func notEqualPointer(x, y *int) bool {
 //	return x != y
 //}
 
-func notEqualStruct(x, y struct{ A int; B float64 }) bool {
-	return x != y
-}
+// TODO: uncomment
+//func notEqualStruct(x, y struct{ A int; B float64 }) bool {
+//	return x != y
+//}
 
-func notEqualArray(x, y [10]int) bool {
-	return x != y
-}
+// TODO: uncomment
+//func notEqualArray(x, y [10]int) bool {
+//	return x != y
+//}
 
-func notEqualSliceNil(x []int) bool {
-	return x != nil
-}
+// TODO: uncomment
+//func notEqualSliceNil(x []int) bool {
+//	return x != nil
+//}
 
 // TODO: uncomment
 //func notEqualMapNil(x map[int]float64) bool {
 //	return x != nil
 //}
 
-func notEqualFuncNil(x func() int) bool {
-	return x != nil
-}
+// TODO: uncomment
+//func notEqualFuncNil(x func() int) bool {
+//	return x != nil
+//}
 
 // The ordering operators <, <=, >, and >= apply to operands that are ordered.
 //
@@ -284,9 +298,10 @@ func lessFloat(x, y float64) bool {
 	return x < y
 }
 
-func lessString(x, y string) bool {
-	return x < y
-}
+// TODO: uncomment
+//func lessString(x, y string) bool {
+//	return x < y
+//}
 
 // --- [ less or equal ] -------------------------------------------------------
 
@@ -298,9 +313,10 @@ func lessOrEqualFloat(x, y float64) bool {
 	return x <= y
 }
 
-func lessOrEqualString(x, y string) bool {
-	return x <= y
-}
+// TODO: uncomment
+//func lessOrEqualString(x, y string) bool {
+//	return x <= y
+//}
 
 // --- [ greater ] -------------------------------------------------------------
 
@@ -312,9 +328,10 @@ func greaterFloat(x, y float64) bool {
 	return x > y
 }
 
-func greaterString(x, y string) bool {
-	return x > y
-}
+// TODO: uncomment
+//func greaterString(x, y string) bool {
+//	return x > y
+//}
 
 // --- [ greater or equal ] ----------------------------------------------------
 
@@ -326,9 +343,10 @@ func greaterOrEqualFloat(x, y float64) bool {
 	return x >= y
 }
 
-func greaterOrEqualString(x, y string) bool {
-	return x >= y
-}
+// TODO: uncomment
+//func greaterOrEqualString(x, y string) bool {
+//	return x >= y
+//}
 
 // === [ Logical operators ] ===================================================
 

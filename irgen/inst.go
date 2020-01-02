@@ -334,7 +334,7 @@ func (fn *Func) emitBinOp(goInst *ssa.BinOp) error {
 				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
 			}
 		default:
-			panic(fmt.Errorf("support for operand type %T of Go SSA binary operation instruction (%v) not yet implemented", typ, goInst.Op))
+			panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
 		}
 	// SUB (-)
 	case token.SUB: // -
@@ -354,7 +354,7 @@ func (fn *Func) emitBinOp(goInst *ssa.BinOp) error {
 				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
 			}
 		default:
-			panic(fmt.Errorf("support for operand type %T of Go SSA binary operation instruction (%v) not yet implemented", typ, goInst.Op))
+			panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
 		}
 	// MUL (*)
 	case token.MUL: // *
@@ -374,7 +374,7 @@ func (fn *Func) emitBinOp(goInst *ssa.BinOp) error {
 				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
 			}
 		default:
-			panic(fmt.Errorf("support for operand type %T of Go SSA binary operation instruction (%v) not yet implemented", typ, goInst.Op))
+			panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
 		}
 	// QUO (/)
 	case token.QUO: // /
@@ -398,7 +398,7 @@ func (fn *Func) emitBinOp(goInst *ssa.BinOp) error {
 				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
 			}
 		default:
-			panic(fmt.Errorf("support for operand type %T of Go SSA binary operation instruction (%v) not yet implemented", typ, goInst.Op))
+			panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
 		}
 	// REM (%)
 	case token.REM: // %
@@ -410,7 +410,7 @@ func (fn *Func) emitBinOp(goInst *ssa.BinOp) error {
 				inst = fn.cur.NewURem(x, y)
 			}
 		default:
-			panic(fmt.Errorf("support for operand type %T of Go SSA binary operation instruction (%v) not yet implemented", typ, goInst.Op))
+			panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
 		}
 	// AND (&)
 	case token.AND: // &
@@ -434,7 +434,7 @@ func (fn *Func) emitBinOp(goInst *ssa.BinOp) error {
 				inst = fn.cur.NewLShr(x, y)
 			}
 		default:
-			panic(fmt.Errorf("support for operand type %T of Go SSA binary operation instruction (%v) not yet implemented", typ, goInst.Op))
+			panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
 		}
 	// AND_NOT (&^)
 	case token.AND_NOT: // &^
@@ -445,26 +445,142 @@ func (fn *Func) emitBinOp(goInst *ssa.BinOp) error {
 			dbg.Println("   tmp:", tmp.LLString())
 			inst = fn.cur.NewAnd(x, tmp)
 		default:
-			panic(fmt.Errorf("support for operand type %T of Go SSA binary operation instruction (%v) not yet implemented", typ, goInst.Op))
+			panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
 		}
 	// EQL (==)
 	case token.EQL: // ==
-		panic("support for Go SSA binary operation instruction token EQL (==) not yet implemented")
+		switch typ := x.Type().(type) {
+		case *irtypes.IntType:
+			inst = fn.cur.NewICmp(irenum.IPredEQ, x, y)
+		case *irtypes.FloatType:
+			// TODO: figure out when to use FPredOEQ vs. FPredUEQ (ordered vs.
+			// unordered).
+			inst = fn.cur.NewFCmp(irenum.FPredOEQ, x, y)
+		case *irtypes.StructType:
+			switch typ.Name() {
+			case "complex64", "complex128":
+				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+			case "string":
+				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+			default:
+				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+			}
+		default:
+			panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+		}
 	// NEQ (!=)
 	case token.NEQ: // !=
-		panic("support for Go SSA binary operation instruction token NEQ (!=) not yet implemented")
+		switch typ := x.Type().(type) {
+		case *irtypes.IntType:
+			inst = fn.cur.NewICmp(irenum.IPredNE, x, y)
+		case *irtypes.FloatType:
+			// TODO: figure out when to use FPredONE vs. FPredUNE (ordered vs.
+			// unordered).
+			inst = fn.cur.NewFCmp(irenum.FPredONE, x, y)
+		case *irtypes.StructType:
+			switch typ.Name() {
+			case "complex64", "complex128":
+				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+			case "string":
+				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+			default:
+				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+			}
+		default:
+			panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+		}
 	// LSS (<)
 	case token.LSS: // <
-		panic("support for Go SSA binary operation instruction token LSS (<) not yet implemented")
+		switch typ := x.Type().(type) {
+		case *irtypes.IntType:
+			if fn.m.isSigned(typ) {
+				inst = fn.cur.NewICmp(irenum.IPredSLT, x, y)
+			} else {
+				inst = fn.cur.NewICmp(irenum.IPredULT, x, y)
+			}
+		case *irtypes.FloatType:
+			// TODO: figure out when to use FPredOLT vs. FPredULT (ordered vs.
+			// unordered).
+			inst = fn.cur.NewFCmp(irenum.FPredOLT, x, y)
+		case *irtypes.StructType:
+			switch typ.Name() {
+			case "string":
+				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+			default:
+				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+			}
+		default:
+			panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+		}
 	// LEQ (<=)
 	case token.LEQ: // <=
-		panic("support for Go SSA binary operation instruction token LEQ (<=) not yet implemented")
-	// GTR (<)
-	case token.GTR: // <
-		panic("support for Go SSA binary operation instruction token GTR (<) not yet implemented")
+		switch typ := x.Type().(type) {
+		case *irtypes.IntType:
+			if fn.m.isSigned(typ) {
+				inst = fn.cur.NewICmp(irenum.IPredSLE, x, y)
+			} else {
+				inst = fn.cur.NewICmp(irenum.IPredULE, x, y)
+			}
+		case *irtypes.FloatType:
+			// TODO: figure out when to use FPredOLE vs. FPredULE (ordered vs.
+			// unordered).
+			inst = fn.cur.NewFCmp(irenum.FPredOLE, x, y)
+		case *irtypes.StructType:
+			switch typ.Name() {
+			case "string":
+				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+			default:
+				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+			}
+		default:
+			panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+		}
+	// GTR (>)
+	case token.GTR: // >
+		switch typ := x.Type().(type) {
+		case *irtypes.IntType:
+			if fn.m.isSigned(typ) {
+				inst = fn.cur.NewICmp(irenum.IPredSGT, x, y)
+			} else {
+				inst = fn.cur.NewICmp(irenum.IPredUGT, x, y)
+			}
+		case *irtypes.FloatType:
+			// TODO: figure out when to use FPredOGT vs. FPredUGT (ordered vs.
+			// unordered).
+			inst = fn.cur.NewFCmp(irenum.FPredOGT, x, y)
+		case *irtypes.StructType:
+			switch typ.Name() {
+			case "string":
+				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+			default:
+				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+			}
+		default:
+			panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+		}
 	// GEQ (>=)
 	case token.GEQ: // >=
-		panic("support for Go SSA binary operation instruction token GEQ (>=) not yet implemented")
+		switch typ := x.Type().(type) {
+		case *irtypes.IntType:
+			if fn.m.isSigned(typ) {
+				inst = fn.cur.NewICmp(irenum.IPredSGE, x, y)
+			} else {
+				inst = fn.cur.NewICmp(irenum.IPredUGE, x, y)
+			}
+		case *irtypes.FloatType:
+			// TODO: figure out when to use FPredOGE vs. FPredUGE (ordered vs.
+			// unordered).
+			inst = fn.cur.NewFCmp(irenum.FPredOGE, x, y)
+		case *irtypes.StructType:
+			switch typ.Name() {
+			case "string":
+				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+			default:
+				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+			}
+		default:
+			panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+		}
 	default:
 		panic(fmt.Errorf("support for Go SSA binary operation instruction token %v not yet implemented", goInst.Op))
 	}
@@ -610,7 +726,7 @@ func (fn *Func) emitUnOp(goInst *ssa.UnOp) error {
 			zero := irconstant.NewFloat(typ, 0)
 			inst = fn.cur.NewFSub(zero, x)
 		default:
-			panic(fmt.Errorf("support for operand type %T of Go SSA binary operation instruction (%v) not yet implemented", typ, goInst.Op))
+			panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
 		}
 	// Channel receive.
 	case token.ARROW: // <-
@@ -632,7 +748,7 @@ func (fn *Func) emitUnOp(goInst *ssa.UnOp) error {
 			zero := irconstant.NewInt(typ, 0)
 			inst = fn.cur.NewXor(x, zero)
 		default:
-			panic(fmt.Errorf("support for operand type %T of Go SSA binary operation instruction (%v) not yet implemented", typ, goInst.Op))
+			panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
 		}
 	default:
 		panic(fmt.Errorf("support for Go SSA unary operation instruction token %v not yet implemented", goInst.Op))
