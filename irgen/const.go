@@ -11,6 +11,7 @@ import (
 // indexNamedConst indexes the given Go SSA named constant, creating a
 // corresponding LLVM IR constant, emitting to m.
 func (m *Module) indexNamedConst(goConst *ssa.NamedConst) error {
+	// TODO: index named constant as LLVM IR constant global variable.
 	panic("not yet implemented")
 }
 

@@ -7,8 +7,11 @@ import (
 	"log"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/llir/llvm/ir"
+	irtypes "github.com/llir/llvm/ir/types"
+	irvalue "github.com/llir/llvm/ir/value"
 	"github.com/mewkiz/pkg/term"
 	"github.com/pkg/errors"
 	"golang.org/x/tools/go/ssa"
@@ -80,6 +83,70 @@ func CompilePackage(goPkg *ssa.Package) (*ir.Module, error) {
 			return nil, errors.WithStack(err)
 		}
 	}
+
+	// Hook up forward declaration (function stubs).
+	//
+	// ref: https://dave.cheney.net/2019/08/20/go-compiler-intrinsics
+	var fs []*ir.Func
+	var externalFuncs []*ir.Func // TODO: remove
+	for goValue := range m.globals {
+		goFunc, ok := goValue.(*ssa.Function)
+		if !ok {
+			continue
+		}
+		f := m.getFunc(goFunc)
+		if goFunc.Pkg != m.goPkg {
+			// skip external declarations.
+			externalFuncs = append(externalFuncs, f)
+			continue
+		}
+		fs = append(fs, f)
+	}
+	sort.Slice(externalFuncs, func(i, j int) bool {
+		return externalFuncs[i].Name() < externalFuncs[j].Name()
+	})
+	sort.Slice(fs, func(i, j int) bool {
+		return fs[i].Name() < fs[j].Name()
+	})
+	for _, externalFunc := range externalFuncs {
+		dbg.Println("external function:", externalFunc.Name())
+	}
+	funcMap := make(map[string]*ir.Func)
+	for _, f := range fs {
+		funcMap[f.Name()] = f
+	}
+	for _, f := range fs {
+		if len(f.Blocks) == 0 {
+			bodyName := strings.ToLower(f.Name())
+			bodyFunc, ok := funcMap[bodyName]
+			if !ok {
+				continue
+			}
+			if !irtypes.Equal(f.Sig, bodyFunc.Sig) {
+				warn.Printf("function signature mismatch between %q (%v) and %q (%v)", f.Name(), f.Sig.LLString(), bodyFunc.Name(), bodyFunc.Sig.LLString())
+				continue
+			}
+			entry := f.NewBlock("entry")
+			args := make([]irvalue.Value, 0, len(f.Params))
+			for _, param := range f.Params {
+				args = append(args, param)
+			}
+			var result irvalue.Value
+			callInst := entry.NewCall(bodyFunc, args...)
+			if !irtypes.Equal(f.Sig.RetType, irtypes.Void) {
+				result = callInst
+			}
+			entry.NewRet(result)
+			dbg.Printf("function body %q added to stub %q", bodyFunc.Name(), f.Name())
+		}
+	}
+	for _, f := range fs {
+		if len(f.Blocks) == 0 {
+			dbg.Println("forward declaration:", f.Name())
+		} else {
+			dbg.Println("function definition:", f.Name())
+		}
+	}
 	return m.Module, nil
 }
 
@@ -108,6 +175,7 @@ func (m *Module) indexAllMembers(goPkg *ssa.Package, indexed map[*ssa.Package]bo
 // corresponding LLVM IR constructs, emitting to m.
 func (m *Module) indexMembers(goPkg *ssa.Package) error {
 	// Sort member names of Go SSA package.
+	dbg.Println("indexing package:", goPkg.Pkg.Path())
 	goMembers := make([]ssa.Member, 0, len(goPkg.Members))
 	for _, goMember := range goPkg.Members {
 		goMembers = append(goMembers, goMember)
@@ -115,6 +183,9 @@ func (m *Module) indexMembers(goPkg *ssa.Package) error {
 	sort.Slice(goMembers, func(i, j int) bool {
 		return goMembers[i].RelString(nil) < goMembers[j].RelString(nil)
 	})
+	for _, goMember := range goMembers {
+		dbg.Println("   index member:", goMember.RelString(nil))
+	}
 	// Index SSA members of Go SSA package.
 	external := m.goPkg != goPkg
 	for _, goMember := range goMembers {
@@ -130,10 +201,8 @@ func (m *Module) indexMembers(goPkg *ssa.Package) error {
 // member is defined in an external Go package.
 func (m *Module) indexMember(goMember ssa.Member, external bool) error {
 	switch goMember := goMember.(type) {
-	// TODO: index named constants.
 	case *ssa.NamedConst:
-		// TODO: evaluate if we need to index named constants or not before
-		// resolving them. What cycles may exist?
+		// TODO: index named constant as LLVM IR constant global variable.
 		//return m.indexNamedConst(goMember)
 		return nil // ignore indexing *ssa.NamedConst for now
 	case *ssa.Global:
