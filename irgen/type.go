@@ -96,10 +96,10 @@ func (m *Module) initPredeclaredTypes() {
 	// string type.
 	// TODO: add support for LLVM IR structure types with field names.
 	//stringType = NewStruct(
-	//   Field{Name: "data", Type: irtypes.NewPointer(irtypes.NewInt(8))},
+	//   Field{Name: "data", Type: irtypes.NewPointer(uint8Type)}, // TODO: use byte alias instead of uint8.
 	//   Field{Name: "len", Type: intType},
 	//)
-	stringType := irtypes.NewStruct(irtypes.NewPointer(irtypes.NewInt(8)), intType)
+	stringType := irtypes.NewStruct(irtypes.NewPointer(uint8Type), intType) // TODO: use byte alias instead of uint8.
 	stringType.SetName("string")
 	m.types[stringType.Name()] = stringType
 	m.Module.TypeDefs = append(m.Module.TypeDefs, stringType)
@@ -320,10 +320,7 @@ func (m *Module) irTypeFromGoSignatureType(goType *gotypes.Signature) *irtypes.P
 // slice type, emitting to m.
 func (m *Module) irTypeFromGoSliceType(goType *gotypes.Slice) *irtypes.StructType {
 	elemType := m.irTypeFromGo(goType.Elem())
-	data := irtypes.NewPointer(elemType)
-	length := m.irTypeFromName("int")
-	capacity := m.irTypeFromName("int")
-	return irtypes.NewStruct(data, length, capacity)
+	return m.newSliceType(elemType)
 }
 
 // ~~~ [ struct type ] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -586,4 +583,35 @@ func copyStructType(t *irtypes.StructType) *irtypes.StructType {
 		Fields:   fields,
 		Opaque:   t.Opaque,
 	}
+}
+
+// ### [ Helper functions ] ####################################################
+
+// newSliceType returns a new LLVM IR slice type based on the given element
+// type.
+func (m *Module) newSliceType(elemType irtypes.Type) *irtypes.StructType {
+	typeName := m.getSliceTypeName(elemType)
+	if typ, ok := m.types[typeName]; ok {
+		return typ.(*irtypes.StructType)
+	}
+	data := irtypes.NewPointer(elemType)
+	length := m.irTypeFromName("int")
+	capacity := m.irTypeFromName("int")
+	// TODO: add support for LLVM IR structure types with field names.
+	//sliceType = NewStruct(
+	//   Field{Name: "data", Type: data},
+	//   Field{Name: "len", Type: length},
+	//   Field{Name: "cap", Type: capacity},
+	//)
+	typ := irtypes.NewStruct(data, length, capacity)
+	typ.SetName(typeName)
+	m.types[typeName] = typ
+	m.Module.TypeDefs = append(m.Module.TypeDefs, typ)
+	return typ
+}
+
+// getSliceTypeName returns the LLVM IR type name of the slice type with the
+// specified element type.
+func (m *Module) getSliceTypeName(elemType irtypes.Type) string {
+	return "[]" + elemType.String() // TODO: use fully qualified name for elemType.
 }

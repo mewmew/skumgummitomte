@@ -3,6 +3,7 @@ package irgen
 import (
 	"fmt"
 	"go/token"
+	"strings"
 
 	"github.com/llir/llvm/ir"
 	irconstant "github.com/llir/llvm/ir/constant"
@@ -127,8 +128,7 @@ func (fn *Func) emitValueInst(goInst ssaValueInstruction) error {
 		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic(fmt.Errorf("support for *ssa.Select (in %q) not yet implemented", goInst.Name()))
 	case *ssa.Slice:
-		goInst.Parent().WriteTo(ssaDebugWriter)
-		panic(fmt.Errorf("support for *ssa.Slice (in %q) not yet implemented", goInst.Name()))
+		return fn.emitSlice(goInst)
 	case *ssa.TypeAssert:
 		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic(fmt.Errorf("support for *ssa.TypeAssert (in %q) not yet implemented", goInst.Name()))
@@ -894,6 +894,92 @@ func (fn *Func) emitPhi(goInst *ssa.Phi) error {
 	if len(goInst.Comment) > 0 {
 		addMetadata(inst, "comment", goInst.Comment)
 	}
+	inst.SetName(goInst.Name())
+	fn.locals[goInst] = inst
+	dbg.Println("   inst:", inst.LLString())
+	return nil
+}
+
+// --- [ slice instruction ] ---------------------------------------------------
+
+// emitSlice compiles the given Go SSA slice instruction to corresponding LLVM
+// IR instructions, emitting to fn.
+func (fn *Func) emitSlice(goInst *ssa.Slice) error {
+	dbg.Println("emitSlice")
+	x := fn.useValue(goInst.X) // slice, string, or *array
+	dbg.Println("   x:", x.String())
+	var low, high, max irvalue.Value
+	if goInst.Low != nil {
+		low = fn.useValue(goInst.Low)
+	}
+	if goInst.High != nil {
+		high = fn.useValue(goInst.High)
+	}
+	if goInst.Max != nil {
+		max = fn.useValue(goInst.Max)
+	}
+	// Get element type.
+	var elemType irtypes.Type
+	var (
+		data     irvalue.Value
+		length   irvalue.Value
+		capacity irvalue.Value
+	)
+	switch xType := x.Type().(type) {
+	// slice, string
+	case *irtypes.StructType:
+		switch {
+		// slice
+		case strings.HasPrefix(xType.Name(), "[]"):
+			dataType := xType.Fields[0].(*irtypes.PointerType)
+			elemType = dataType.ElemType
+			data = fn.cur.NewExtractValue(x, 0)
+			length = fn.cur.NewExtractValue(x, 1)
+			capacity = fn.cur.NewExtractValue(x, 2)
+		// string
+		case xType.Name() == "string":
+			elemType = fn.m.irTypeFromName("uint8") // TODO: use byte alias instead of uint8.
+			data = fn.cur.NewExtractValue(x, 0)
+			length = fn.cur.NewExtractValue(x, 1)
+			capacity = length
+		default:
+			panic(fmt.Errorf("support for type %T (%q) in slice instruction not yet implemented", xType, xType.Name()))
+		}
+	// *array
+	case *irtypes.PointerType:
+		arrayType, ok := xType.ElemType.(*irtypes.ArrayType)
+		if !ok {
+			panic(fmt.Errorf("support for type %T (%v) in slice instruction not yet implemented", xType, xType.String()))
+		}
+		elemType = arrayType.ElemType
+		zero := irconstant.NewInt(irtypes.I64, 0)
+		data = fn.cur.NewGetElementPtr(elemType, x, zero)
+		length = irconstant.NewInt(fn.m.irTypeFromName("int").(*irtypes.IntType), int64(arrayType.Len))
+		capacity = length
+	default:
+		panic(fmt.Errorf("support for type %T in slice instruction not yet implemented", xType))
+	}
+	// Allocate new slice value.
+	sliceType := fn.m.newSliceType(elemType)
+	alloca := fn.cur.NewAlloca(sliceType)
+	fn.cur.NewStore(irconstant.NewZeroInitializer(sliceType), alloca)
+	var v irvalue.Value = fn.cur.NewLoad(sliceType, alloca)
+	// data[low::]
+	if low != nil {
+		data = fn.cur.NewGetElementPtr(elemType, data, low)
+	}
+	v = fn.cur.NewInsertValue(v, data, 0)
+	// data[:high:]
+	if high != nil {
+		length = high
+	}
+	v = fn.cur.NewInsertValue(v, length, 1)
+	// data[::max]
+	if max != nil {
+		capacity = max
+	}
+	inst := fn.cur.NewInsertValue(v, capacity, 2)
+	inst.SetName(goInst.Name())
 	fn.locals[goInst] = inst
 	dbg.Println("   inst:", inst.LLString())
 	return nil
