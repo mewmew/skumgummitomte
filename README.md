@@ -24,9 +24,9 @@ $ lli main.ll
 
 ### Local variables
 
-Compile and run [examples/locals/locals.go](examples/locals/locals.go).
+Compile and run [examples/locals/main.go](examples/locals/main.go).
 ```bash
-$ sgt -o locals.ll examples/locals/locals.go
+$ sgt -o locals.ll examples/locals/main.go
 $ lli locals.ll ; echo $?
 # Output:
 #
@@ -117,4 +117,15 @@ $ lli main.ll
 # baz
 # bar
 # foo
+```
+
+### Synthesized `len` function
+
+Compile and run [examples/length/main.go](examples/length/main.go).
+```bash
+$ sgt -o length.ll examples/length/main.go
+$ lli length.ll ; echo $?
+# Output:
+#
+# 42
 ```
