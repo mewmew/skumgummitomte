@@ -245,7 +245,7 @@
 - [ ] [io/ioutil](https://golang.org/pkg/io/ioutil)
 - [ ] [log](https://golang.org/pkg/log)
 - [ ] [log/syslog](https://golang.org/pkg/log/syslog)
-- [x] [math](https://golang.org/pkg/math) ([as of 2020-01-02](https://golang.org/pkg/https://github.com/mewmew/skumgummitomte/commit/f246b32042dd46f5e7310c1338fb5122ddb58547))
+- [x] [math](https://golang.org/pkg/math) (as of 2020-01-03, rev [6edefbc](https://github.com/mewmew/skumgummitomte/commit/6edefbc00cbb33451b22acbed8702012e17c7913))
 - [ ] [math/big](https://golang.org/pkg/math/big)
 - [ ] [math/bits](https://golang.org/pkg/math/bits)
 - [ ] [math/cmplx](https://golang.org/pkg/math/cmplx)

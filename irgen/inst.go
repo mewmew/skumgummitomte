@@ -3,6 +3,7 @@ package irgen
 import (
 	"fmt"
 	"go/token"
+	gotypes "go/types"
 	"strings"
 
 	"github.com/llir/llvm/ir"
@@ -274,7 +275,7 @@ func (fn *Func) emitNew(goInst *ssa.Alloc) error {
 	typ := fn.m.irTypeFromGo(goInst.Type())
 	ptrType := typ.(*irtypes.PointerType)
 	// Define `new(T)` function if not present.
-	typeName := ptrType.ElemType.Name() // TODO: check that builtin type names (e.g. `int32`) are currently handled.
+	typeName := goInst.Type().(*gotypes.Pointer).Elem().String()
 	newFuncName := fmt.Sprintf("new(%s)", typeName)
 	newFunc, ok := fn.m.predeclaredFuncs[newFuncName]
 	if !ok {
@@ -317,7 +318,7 @@ func (fn *Func) emitNew(goInst *ssa.Alloc) error {
 	fn.locals[goInst] = inst
 	// Add local variable name metadata attachment to alloca instruction.
 	if len(goInst.Comment) > 0 {
-		addMetadata(inst, "var_name", goInst.Comment)
+		addMetadata(inst, "comment", goInst.Comment)
 	}
 	dbg.Println("   inst:", inst)
 	return nil
@@ -933,15 +934,25 @@ func (fn *Func) emitSlice(goInst *ssa.Slice) error {
 		case strings.HasPrefix(xType.Name(), "[]"):
 			dataType := xType.Fields[0].(*irtypes.PointerType)
 			elemType = dataType.ElemType
-			data = fn.cur.NewExtractValue(x, 0)
-			length = fn.cur.NewExtractValue(x, 1)
-			capacity = fn.cur.NewExtractValue(x, 2)
+			dataField := fn.cur.NewExtractValue(x, 0)
+			addMetadata(dataField, "field", "data")
+			data = dataField
+			lengthField := fn.cur.NewExtractValue(x, 1)
+			addMetadata(lengthField, "field", "len")
+			length = lengthField
+			capacityField := fn.cur.NewExtractValue(x, 2)
+			addMetadata(capacityField, "field", "cap")
+			capacity = capacityField
 		// string
 		case xType.Name() == "string":
 			elemType = fn.m.irTypeFromName("uint8") // TODO: use byte alias instead of uint8.
-			data = fn.cur.NewExtractValue(x, 0)
-			length = fn.cur.NewExtractValue(x, 1)
-			capacity = length
+			dataField := fn.cur.NewExtractValue(x, 0)
+			addMetadata(dataField, "field", "data")
+			data = dataField
+			lengthField := fn.cur.NewExtractValue(x, 1)
+			addMetadata(lengthField, "field", "len")
+			length = lengthField
+			capacity = lengthField
 		default:
 			panic(fmt.Errorf("support for type %T (%q) in slice instruction not yet implemented", xType, xType.Name()))
 		}
@@ -953,7 +964,13 @@ func (fn *Func) emitSlice(goInst *ssa.Slice) error {
 		}
 		elemType = arrayType.ElemType
 		zero := irconstant.NewInt(irtypes.I64, 0)
-		data = fn.cur.NewGetElementPtr(elemType, x, zero)
+		indices := []irvalue.Value{
+			zero,
+			zero,
+		}
+		dataField := fn.cur.NewGetElementPtr(arrayType, x, indices...)
+		addMetadata(dataField, "field", "data")
+		data = dataField
 		length = irconstant.NewInt(fn.m.irTypeFromName("int").(*irtypes.IntType), int64(arrayType.Len))
 		capacity = length
 	default:
@@ -963,22 +980,29 @@ func (fn *Func) emitSlice(goInst *ssa.Slice) error {
 	sliceType := fn.m.newSliceType(elemType)
 	alloca := fn.cur.NewAlloca(sliceType)
 	fn.cur.NewStore(irconstant.NewZeroInitializer(sliceType), alloca)
-	var v irvalue.Value = fn.cur.NewLoad(sliceType, alloca)
+	var slice irvalue.Value = fn.cur.NewLoad(sliceType, alloca)
+	// TODO: add bounds check of low, high and max.
 	// data[low::]
 	if low != nil {
 		data = fn.cur.NewGetElementPtr(elemType, data, low)
 	}
-	v = fn.cur.NewInsertValue(v, data, 0)
+	insertData := fn.cur.NewInsertValue(slice, data, 0)
+	addMetadata(insertData, "field", "data")
+	slice = insertData
 	// data[:high:]
 	if high != nil {
 		length = high
 	}
-	v = fn.cur.NewInsertValue(v, length, 1)
+	insertLength := fn.cur.NewInsertValue(slice, length, 1)
+	addMetadata(insertLength, "field", "len")
+	slice = insertLength
 	// data[::max]
 	if max != nil {
 		capacity = max
 	}
-	inst := fn.cur.NewInsertValue(v, capacity, 2)
+	insertCapacity := fn.cur.NewInsertValue(slice, capacity, 2)
+	addMetadata(insertCapacity, "field", "cap")
+	inst := insertCapacity
 	inst.SetName(goInst.Name())
 	fn.locals[goInst] = inst
 	dbg.Println("   inst:", inst.LLString())
