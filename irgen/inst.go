@@ -100,8 +100,7 @@ func (fn *Func) emitValueInst(goInst ssaValueInstruction) error {
 	case *ssa.IndexAddr:
 		return fn.emitIndexAddr(goInst)
 	case *ssa.Lookup:
-		goInst.Parent().WriteTo(ssaDebugWriter)
-		panic(fmt.Errorf("support for *ssa.Lookup (in %q) not yet implemented", goInst.Name()))
+		return fn.emitLookup(goInst)
 	case *ssa.MakeChan:
 		goInst.Parent().WriteTo(ssaDebugWriter)
 		panic(fmt.Errorf("support for *ssa.MakeChan (in %q) not yet implemented", goInst.Name()))
@@ -488,7 +487,10 @@ func (fn *Func) emitBinOp(goInst *ssa.BinOp) error {
 			case "complex64", "complex128":
 				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
 			case "string":
-				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+				cmp := fn.m.getPredeclaredFunc("cmp.string")
+				result := fn.cur.NewCall(cmp, x, y)
+				zero := irconstant.NewInt(result.Type().(*irtypes.IntType), 0)
+				inst = fn.cur.NewICmp(irenum.IPredEQ, result, zero)
 			default:
 				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
 			}
@@ -509,7 +511,10 @@ func (fn *Func) emitBinOp(goInst *ssa.BinOp) error {
 			case "complex64", "complex128":
 				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
 			case "string":
-				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+				cmp := fn.m.getPredeclaredFunc("cmp.string")
+				result := fn.cur.NewCall(cmp, x, y)
+				zero := irconstant.NewInt(result.Type().(*irtypes.IntType), 0)
+				inst = fn.cur.NewICmp(irenum.IPredNE, result, zero)
 			default:
 				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
 			}
@@ -532,7 +537,10 @@ func (fn *Func) emitBinOp(goInst *ssa.BinOp) error {
 		case *irtypes.StructType:
 			switch typ.Name() {
 			case "string":
-				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+				cmp := fn.m.getPredeclaredFunc("cmp.string")
+				result := fn.cur.NewCall(cmp, x, y)
+				zero := irconstant.NewInt(result.Type().(*irtypes.IntType), -1)
+				inst = fn.cur.NewICmp(irenum.IPredEQ, result, zero)
 			default:
 				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
 			}
@@ -555,7 +563,10 @@ func (fn *Func) emitBinOp(goInst *ssa.BinOp) error {
 		case *irtypes.StructType:
 			switch typ.Name() {
 			case "string":
-				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+				cmp := fn.m.getPredeclaredFunc("cmp.string")
+				result := fn.cur.NewCall(cmp, x, y)
+				zero := irconstant.NewInt(result.Type().(*irtypes.IntType), 1)
+				inst = fn.cur.NewICmp(irenum.IPredNE, result, zero)
 			default:
 				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
 			}
@@ -578,7 +589,10 @@ func (fn *Func) emitBinOp(goInst *ssa.BinOp) error {
 		case *irtypes.StructType:
 			switch typ.Name() {
 			case "string":
-				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+				cmp := fn.m.getPredeclaredFunc("cmp.string")
+				result := fn.cur.NewCall(cmp, x, y)
+				zero := irconstant.NewInt(result.Type().(*irtypes.IntType), 1)
+				inst = fn.cur.NewICmp(irenum.IPredEQ, result, zero)
 			default:
 				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
 			}
@@ -601,7 +615,10 @@ func (fn *Func) emitBinOp(goInst *ssa.BinOp) error {
 		case *irtypes.StructType:
 			switch typ.Name() {
 			case "string":
-				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
+				cmp := fn.m.getPredeclaredFunc("cmp.string")
+				result := fn.cur.NewCall(cmp, x, y)
+				zero := irconstant.NewInt(result.Type().(*irtypes.IntType), -1)
+				inst = fn.cur.NewICmp(irenum.IPredNE, result, zero)
 			default:
 				panic(fmt.Errorf("support for operand type %T (%q) of Go SSA binary operation instruction (%v) not yet implemented", typ, typ.Name(), goInst.Op))
 			}
@@ -887,7 +904,7 @@ func (fn *Func) emitIndexAddr(goInst *ssa.IndexAddr) error {
 	case *irtypes.StructType:
 		switch {
 		// slice
-		case strings.HasPrefix(xType.Name(), "[]"):
+		case strings.HasPrefix(xType.Name(), "[]"): // TODO: use other approach than type name to identify slice types; this approach is fragile as it doesn't handle type definitions (e.g. `type T []int`).
 			dataType := xType.Fields[0].(*irtypes.PointerType)
 			data := fn.cur.NewExtractValue(x, 0)
 			addMetadata(data, "field", "data")
@@ -906,6 +923,44 @@ func (fn *Func) emitIndexAddr(goInst *ssa.IndexAddr) error {
 		}
 	default:
 		panic(fmt.Errorf("support for %T of indexaddr instruction not yet implemented", xType))
+	}
+	inst.SetName(goInst.Name())
+	fn.locals[goInst] = inst
+	dbg.Println("   inst:", inst.LLString())
+	return nil
+}
+
+// --- [ lookup instruction ] --------------------------------------------------
+
+// emitLookup compiles the given Go SSA lookup instruction to corresponding LLVM
+// IR instructions, emitting to fn.
+func (fn *Func) emitLookup(goInst *ssa.Lookup) error {
+	dbg.Println("emitLookup")
+	x := fn.useValue(goInst.X)
+	index := fn.useValue(goInst.Index)
+	var inst irValueInstruction
+	switch xType := x.Type().(type) {
+	case *irtypes.StructType:
+		switch {
+		// string
+		case xType.Name() == "string":
+			dataType := xType.Fields[0].(*irtypes.PointerType)
+			data := fn.cur.NewExtractValue(x, 0)
+			addMetadata(data, "field", "data")
+			gep := fn.cur.NewGetElementPtr(dataType.ElemType, data, index)
+			dbg.Println("   gep:", gep.LLString())
+			inst = fn.cur.NewLoad(dataType.ElemType, gep)
+		// map
+		case strings.HasPrefix(xType.Name(), "map["): // TODO: use other approach than type name to identify map types; this approach is fragile as it doesn't handle type definitions (e.g. `type T map[int]string`).
+			if goInst.CommaOk {
+				// TODO: add support for `comma, ok` use of map.
+			}
+			panic(fmt.Errorf("support for type %T (%q) in lookup instruction not yet implemented", xType, xType.Name()))
+		default:
+			panic(fmt.Errorf("support for type %T (%q) in lookup instruction not yet implemented", xType, xType.Name()))
+		}
+	default:
+		panic(fmt.Errorf("support for type %T (%q) in lookup instruction not yet implemented", xType, xType.Name()))
 	}
 	inst.SetName(goInst.Name())
 	fn.locals[goInst] = inst
@@ -967,7 +1022,7 @@ func (fn *Func) emitSlice(goInst *ssa.Slice) error {
 	case *irtypes.StructType:
 		switch {
 		// slice
-		case strings.HasPrefix(xType.Name(), "[]"):
+		case strings.HasPrefix(xType.Name(), "[]"): // TODO: use other approach than type name to identify slice types; this approach is fragile as it doesn't handle type definitions (e.g. `type T []int`).
 			dataType := xType.Fields[0].(*irtypes.PointerType)
 			elemType = dataType.ElemType
 			dataField := fn.cur.NewExtractValue(x, 0)

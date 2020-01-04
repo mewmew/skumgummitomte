@@ -58,3 +58,85 @@ fail:
 	; TODO: add panic message with "recvType.methodName".
 	unreachable
 }
+
+; func cmp.string(x, y string) int
+;
+;    cmp.string compares x with y lexically byte-wise and returns:
+;
+;        -1 if x <  y
+;         0 if x == y
+;        +1 if x >  y
+define %int @cmp.string(%string %x, %string %y) {
+entry:
+	%x_data = extractvalue %string %x, 0 ; %uint8*
+	%x_len = extractvalue %string %x, 1  ; %int
+	%y_data = extractvalue %string %y, 0 ; %uint8*
+	%y_len = extractvalue %string %y, 1  ; %int
+	; l = min(len(x), len(y))
+	%l = call %int @internal.min(%int %x_len, %int %y_len)
+	br label %loop.pre
+
+	; for (i := 0; i < l; i++)
+loop.pre:
+	%i.ptr = alloca %int
+	store %int 0, %int* %i.ptr
+	br label %loop.cond
+
+loop.cond:
+	%i = load %int, %int* %i.ptr
+	%cond = icmp slt %int %i, %l
+	br i1 %cond, label %loop.body, label %loop.exit
+
+loop.body:
+	%xp = getelementptr %uint8, %uint8* %x_data, %int %i
+	%yp = getelementptr %uint8, %uint8* %y_data, %int %i
+	%xc = load %uint8, %uint8* %xp
+	%yc = load %uint8, %uint8* %yp
+	br label %check_byte_less
+
+check_byte_less:
+	%byte_less = icmp ult %uint8 %xc, %yc
+	br i1 %byte_less, label %ret_less, label %check_byte_greater
+
+check_byte_greater:
+	%byte_greater = icmp ugt %uint8 %xc, %yc
+	br i1 %byte_greater, label %ret_greater, label %loop.post
+
+loop.post:
+	%i.inc = add %int %i, 1
+	store %int %i.inc, %int* %i.ptr
+	br label %loop.cond
+
+loop.exit:
+	br label %check_len_less
+
+check_len_less:
+	%len_less = icmp slt %int %x_len, %y_len
+	br i1 %len_less, label %ret_less, label %check_len_greater
+
+check_len_greater:
+	%len_greater = icmp sgt %int %x_len, %y_len
+	br i1 %len_greater, label %ret_greater, label %ret_equal
+
+ret_less:
+	ret %int -1
+
+ret_equal:
+	ret %int 0
+
+ret_greater:
+	ret %int 1
+}
+
+; min returns the smaller of x and y.
+define %int @internal.min(%int %x, %int %y) {
+entry:
+	%cond = icmp slt %int %x, %y
+	br i1 %cond, label %x_min, label %y_min
+
+x_min:
+	ret %int %x
+
+y_min:
+	ret %int %y
+}

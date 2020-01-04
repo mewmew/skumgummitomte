@@ -60,7 +60,7 @@ func (m *Module) NewFunc(goFunc *ssa.Function) *Func {
 func (m *Module) initPredeclaredFuncs() {
 	// --- [ builtin Go functions ] ---
 
-	// println.
+	// println
 	{
 		retType := irtypes.Void
 		param := ir.NewParam("", m.irTypeFromName("string"))
@@ -71,6 +71,8 @@ func (m *Module) initPredeclaredFuncs() {
 
 	// --- [ needed by Go SSA code ] ---
 
+	// wrapnilchk
+	//
 	// wrapnilchk returns ptr if non-nil, panics otherwise.
 	// (For use in indirection wrappers.)
 	//
@@ -89,7 +91,7 @@ func (m *Module) initPredeclaredFuncs() {
 
 	// --- [ dependencies of new(T) ] ---
 
-	// calloc.
+	// calloc
 	{
 		// void *calloc(size_t nmemb, size_t size)
 		retType := irtypes.I8Ptr // generic pointer type.
@@ -113,6 +115,17 @@ func (m *Module) initPredeclaredFuncs() {
 		}
 		objectsizeFunc := m.Module.NewFunc("llvm.objectsize.i64", retType, params...)
 		m.predeclaredFuncs[objectsizeFunc.Name()] = objectsizeFunc
+	}
+
+	// --- [ needed by generated instructions ] ---
+
+	// cmp.string
+	{
+		retType := m.irTypeFromName("int")
+		x := ir.NewParam("x", m.irTypeFromName("string"))
+		y := ir.NewParam("y", m.irTypeFromName("string"))
+		stringCmpFunc := m.Module.NewFunc("cmp.string", retType, x, y)
+		m.predeclaredFuncs[stringCmpFunc.Name()] = stringCmpFunc
 	}
 }
 
