@@ -129,3 +129,53 @@ $ lli length.ll ; echo $?
 #
 # 42
 ```
+
+### String comparison
+
+Compile and run [examples/string_compare/main.go](examples/string_compare/main.go).
+```bash
+$ sgt -o string_compare.ll examples/string_compare/main.go
+$ llvm-link -S -o main.ll string_compare.ll std/builtin.ll
+$ lli main.ll
+# Output:
+#
+# x:
+# foo
+# y:
+# foo
+# x less than or equal to y
+# x greater than or equal to y
+# x equal to y
+#
+# x:
+# abc
+# y:
+# def
+# x less than y
+# x less than or equal to y
+# x not equal to y
+#
+# x:
+# abc
+# y:
+# abcd
+# x less than y
+# x less than or equal to y
+# x not equal to y
+#
+# x:
+# abcd
+# y:
+# abc
+# x greater than y
+# x greater than or equal to y
+# x not equal to y
+#
+# x:
+# abx
+# y:
+# abc
+# x greater than y
+# x greater than or equal to y
+# x not equal to y
+```
