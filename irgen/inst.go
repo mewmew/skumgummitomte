@@ -1017,6 +1017,7 @@ func (fn *Func) emitSlice(goInst *ssa.Slice) error {
 		length   irvalue.Value
 		capacity irvalue.Value
 	)
+	isString := false
 	switch xType := x.Type().(type) {
 	// slice, string
 	case *irtypes.StructType:
@@ -1036,6 +1037,7 @@ func (fn *Func) emitSlice(goInst *ssa.Slice) error {
 			capacity = capacityField
 		// string
 		case xType.Name() == "string":
+			isString = true
 			elemType = fn.m.irTypeFromName("uint8") // TODO: use byte alias instead of uint8.
 			dataField := fn.cur.NewExtractValue(x, 0)
 			addMetadata(dataField, "field", "data")
@@ -1068,7 +1070,12 @@ func (fn *Func) emitSlice(goInst *ssa.Slice) error {
 		panic(fmt.Errorf("support for type %T in slice instruction not yet implemented", xType))
 	}
 	// Allocate new slice value.
-	sliceType := fn.m.newSliceType(elemType)
+	var sliceType irtypes.Type
+	if isString {
+		sliceType = fn.m.irTypeFromName("string")
+	} else {
+		sliceType = fn.m.newSliceType(elemType)
+	}
 	alloca := fn.cur.NewAlloca(sliceType)
 	fn.cur.NewStore(irconstant.NewZeroInitializer(sliceType), alloca)
 	var slice irvalue.Value = fn.cur.NewLoad(sliceType, alloca)
@@ -1082,18 +1089,30 @@ func (fn *Func) emitSlice(goInst *ssa.Slice) error {
 	slice = insertData
 	// data[:high:]
 	if high != nil {
+		if low != nil {
+			high = fn.cur.NewSub(high, low)
+		}
 		length = high
 	}
 	insertLength := fn.cur.NewInsertValue(slice, length, 1)
 	addMetadata(insertLength, "field", "len")
 	slice = insertLength
-	// data[::max]
-	if max != nil {
-		capacity = max
+	var inst irValueInstruction
+	if isString {
+		// string type has no capacity field.
+		inst = insertLength
+	} else {
+		// data[::max]
+		if max != nil {
+			if low != nil {
+				max = fn.cur.NewSub(max, low)
+			}
+			capacity = max
+		}
+		insertCapacity := fn.cur.NewInsertValue(slice, capacity, 2)
+		addMetadata(insertCapacity, "field", "cap")
+		inst = insertCapacity
 	}
-	insertCapacity := fn.cur.NewInsertValue(slice, capacity, 2)
-	addMetadata(insertCapacity, "field", "cap")
-	inst := insertCapacity
 	inst.SetName(goInst.Name())
 	fn.locals[goInst] = inst
 	dbg.Println("   inst:", inst.LLString())
