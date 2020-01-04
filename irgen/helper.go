@@ -31,7 +31,7 @@ type RelStringer interface {
 // fullName returns the full name of the value, qualified by package name if not
 // in main package.
 func (m *Module) fullName(v RelStringer) string {
-	if m.goPkg.Pkg.Name() == "main" {
+	if m.skipPkgPrefix() {
 		// Fully qualified name if global is imported, otherwise name without
 		// package path.
 		from := m.goPkg.Pkg
@@ -44,7 +44,7 @@ func (m *Module) fullName(v RelStringer) string {
 // fullTypeName returns the full name of the type, qualified by package name if
 // not in main package.
 func (m *Module) fullTypeName(t gotypes.Type) string {
-	if m.goPkg.Pkg.Name() == "main" {
+	if m.skipPkgPrefix() {
 		// Fully qualified name if type is imported, otherwise name without
 		// package path.
 		from := m.goPkg.Pkg
@@ -256,5 +256,20 @@ func (m *Module) isSigned(typ *irtypes.IntType) bool {
 		return true
 	default:
 		panic(fmt.Errorf("support for integer type name %q not yet implemented", typ.Name()))
+	}
+}
+
+// skipPkgPrefix reports whether to skip the package prefix in qualified names.
+func (m *Module) skipPkgPrefix() bool {
+	switch {
+	case m.goPkg.Pkg.Name() == "main":
+		// Skip package prefix for main packages.
+		return true
+	case m.goPkg.Pkg.Path() == "command-line-arguments":
+		// Skip package prefix if a source file name was specified on command line
+		// rather than a package path.
+		return true
+	default:
+		return false
 	}
 }

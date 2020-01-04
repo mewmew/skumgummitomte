@@ -31,7 +31,7 @@ func (m *Module) emitStringLit(s string) *ir.Global {
 // Note: only thread-safe if invoked thorugh emitStringLit.
 func (m *Module) nextStrName() string {
 	strName := fmt.Sprintf("str_%04d", m.curStrNum)
-	if m.goPkg.Pkg.Name() != "main" {
+	if m.skipPkgPrefix() {
 		// Use fully qualified name if not in `main` package.
 		strName = fmt.Sprintf("%s.%s", m.goPkg.Pkg.Path(), strName)
 	}

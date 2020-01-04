@@ -268,6 +268,9 @@ func (fn *Func) emitAlloc(goInst *ssa.Alloc) error {
 
 // ~~~ [ new - heap alloc instruction ] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+// TODO: move emitNew to builtin, where other synthesized builtin functions are
+// handled.
+
 // emitNew compiles the given Go SSA heap alloc instruction to corresponding
 // LLVM IR instructions, emitting to fn.
 func (fn *Func) emitNew(goInst *ssa.Alloc) error {
@@ -659,19 +662,36 @@ func (fn *Func) emitComplexBinOp(op func(a, b irvalue.Value) irValueInstruction,
 // instructions, emitting to fn.
 func (fn *Func) emitCall(goInst *ssa.Call) error {
 	dbg.Println("emitCall")
-	// Receiver (invoke mode) or func value (call mode).
-	callee := fn.useValue(goInst.Call.Value)
-	if goInst.Call.Method != nil {
-		// Receiver mode.
-		panic("support for receiver mode (method invocation) of Go SSA call instruction not yet implemented")
-	}
-	dbg.Println("   callee:", callee.Ident())
-	// Function arguments.
+	// Function arguments; convert function arguments early, as we may rely on
+	// their type when synthesizing builtin functions.
 	var args []irvalue.Value
 	for _, goArg := range goInst.Call.Args {
 		arg := fn.useValue(goArg)
 		args = append(args, arg)
 	}
+	// Receiver (invoke mode) or func value (call mode).
+	var callee irvalue.Value
+	if goCallee, ok := goInst.Call.Value.(*ssa.Builtin); ok {
+		// Synthesize generic builtin `len` function based on argument type.
+		switch goCallee.Name() {
+		case "len":
+			callee = fn.m.synthLen(args[0].Type())
+		//case "cap":
+		case "println":
+			// TODO: synthesize `println` based on argument types?
+			// implemented in builtin.ll
+			callee = fn.useValue(goInst.Call.Value)
+		default:
+			panic(fmt.Errorf("support for builtin function %q not yet implemented", goCallee.Name()))
+		}
+	} else {
+		callee = fn.useValue(goInst.Call.Value)
+	}
+	if goInst.Call.Method != nil {
+		// Receiver mode.
+		panic("support for receiver mode (method invocation) of Go SSA call instruction not yet implemented")
+	}
+	dbg.Println("   callee:", callee.Ident())
 	// Bitcast pointer types of "ssa:wrapnilchk" call as follows.
 	//
 	//    * first argument: from T* to i8*
