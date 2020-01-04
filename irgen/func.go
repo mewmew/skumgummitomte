@@ -60,6 +60,15 @@ func (m *Module) NewFunc(goFunc *ssa.Function) *Func {
 func (m *Module) initPredeclaredFuncs() {
 	// --- [ builtin Go functions ] ---
 
+	// print
+	{
+		retType := irtypes.Void
+		param := ir.NewParam("", m.irTypeFromName("string"))
+		printFunc := m.Module.NewFunc("print", retType, param)
+		printFunc.Sig.Variadic = true
+		m.predeclaredFuncs[printFunc.Name()] = printFunc
+	}
+
 	// println
 	{
 		retType := irtypes.Void

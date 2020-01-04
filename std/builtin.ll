@@ -42,6 +42,22 @@ define void @println(%string %s, ...) {
 	ret void
 }
 
+; func print(args ...Type)
+;
+;    The print built-in function formats its arguments in an
+;    implementation-specific way and writes the result to standard error. Print
+;    is useful for bootstrapping and debugging; it is not guaranteed to stay in
+;    the language.
+define void @print(%string %s, ...) {
+	; TODO: handle variadic arguments.
+
+	; print string to standard output
+	%data = extractvalue %string %s, 0
+	%len = extractvalue %string %s, 1
+	call i64 @write(i64 0, i8* %data, i64 %len)
+	ret void
+}
+
 ; wrapnilchk returns ptr if non-nil, panics otherwise.
 ; (For use in indirection wrappers.)
 ;

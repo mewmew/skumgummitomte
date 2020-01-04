@@ -691,17 +691,13 @@ func (fn *Func) emitCall(goInst *ssa.Call) error {
 	if goCallee, ok := goInst.Call.Value.(*ssa.Builtin); ok {
 		// Synthesize generic builtin `len` function based on argument type.
 		switch goCallee.Name() {
+		// TODO: add support for more synthesized functions.
+		//case "cap":
 		case "len":
 			callee = fn.m.synthLen(args[0].Type())
-		//case "cap":
-		case "println":
-			// TODO: synthesize `println` based on argument types?
-			// implemented in builtin.ll
-			callee = fn.useValue(goInst.Call.Value)
-		default:
-			panic(fmt.Errorf("support for builtin function %q not yet implemented", goCallee.Name()))
 		}
-	} else {
+	}
+	if callee == nil {
 		callee = fn.useValue(goInst.Call.Value)
 	}
 	if goInst.Call.Method != nil {

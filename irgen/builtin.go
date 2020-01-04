@@ -2,6 +2,7 @@ package irgen
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/llir/llvm/ir"
 	irtypes "github.com/llir/llvm/ir/types"
@@ -25,8 +26,14 @@ func (m *Module) synthLen(argType irtypes.Type) *ir.Func {
 	var length irvalue.Value
 	switch argType := argType.(type) {
 	case *irtypes.StructType:
-		switch argType.Name() {
-		case "string":
+		switch {
+		// string
+		case argType.Name() == "string":
+			lengthField := entry.NewExtractValue(arg, 1)
+			addMetadata(lengthField, "field", "len")
+			length = lengthField
+		// slice
+		case strings.HasPrefix(argType.Name(), "[]"):
 			lengthField := entry.NewExtractValue(arg, 1)
 			addMetadata(lengthField, "field", "len")
 			length = lengthField
