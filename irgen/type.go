@@ -112,10 +112,13 @@ func (m *Module) initPredeclaredTypes() {
 	// TODO: figure out how to define interface types.
 	// TODO: add support for LLVM IR structure types with field names.
 	//errorType = NewStruct(
-	//   Field{Name: "type", Type: irtypes.I8Ptr},
-	//   Field{Name: "value", Type: irtypes.I8Ptr},
+	//   Field{Name: "type", Type: stringType},
+	//   Field{Name: "value", Type: irtypes.I8Ptr}, // generic pointer type
 	//)
-	errorType := irtypes.NewStruct(irtypes.I8Ptr, irtypes.I8Ptr)
+	errorType := irtypes.NewStruct(
+		stringType,
+		irtypes.I8Ptr, // generic pointer type
+	)
 	errorType.SetName("error")
 	m.types[errorType.Name()] = errorType
 	m.Module.TypeDefs = append(m.Module.TypeDefs, errorType)
@@ -149,7 +152,7 @@ func (m *Module) irTypeFromGo(goType gotypes.Type) irtypes.Type {
 	case *gotypes.Chan:
 		panic("support for *gotypes.Chan not yet implemented")
 	case *gotypes.Interface:
-		panic("support for *gotypes.Interface not yet implemented")
+		return m.irTypeFromGoInterfaceType(goType)
 	case *gotypes.Map:
 		panic("support for *gotypes.Map not yet implemented")
 	case *gotypes.Named:
@@ -247,6 +250,14 @@ func (m *Module) irTypeFromGoBasicType(goType *gotypes.Basic) irtypes.Type {
 		panic(fmt.Errorf("support for Go basic type kind %v not yet implemented", kind))
 	}
 	return m.irTypeFromName(typeName)
+}
+
+// ~~~ [ interface type ] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// irTypeFromGoInterfaceType returns the LLVM IR type corresponding to the given
+// Go interface type, emitting to m.
+func (m *Module) irTypeFromGoInterfaceType(goType *gotypes.Interface) irtypes.Type {
+	panic("not yet implemented")
 }
 
 // ~~~ [ pointer type ] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -7,6 +7,7 @@ import (
 	"github.com/llir/llvm/ir"
 	"github.com/llir/llvm/ir/metadata"
 	irtypes "github.com/llir/llvm/ir/types"
+	irvalue "github.com/llir/llvm/ir/value"
 )
 
 // ### [ Helper functions ] ####################################################
@@ -272,4 +273,86 @@ func (m *Module) skipPkgPrefix() bool {
 	default:
 		return false
 	}
+}
+
+// --- [ convert ] -------------------------------------------------------------
+
+// convert converts the given the given value to the specified type, emitting to
+// fn.
+func (fn *Func) convert(from irvalue.Value, to irtypes.Type) irValueInstruction {
+	var inst irValueInstruction
+	switch fromType := from.Type().(type) {
+	case *irtypes.IntType:
+		switch toType := to.(type) {
+		// int -> int
+		case *irtypes.IntType:
+			switch {
+			case fromType.BitSize == toType.BitSize:
+				inst = fn.cur.NewBitCast(from, to)
+			case fromType.BitSize < toType.BitSize:
+				if fn.m.isSigned(fromType) {
+					inst = fn.cur.NewSExt(from, to)
+				} else {
+					inst = fn.cur.NewZExt(from, to)
+				}
+			case fromType.BitSize > toType.BitSize:
+				inst = fn.cur.NewTrunc(from, to)
+			default:
+				panic(fmt.Errorf("support for converting from type %T (%v) to type %T (%v) not yet implemented", fromType, fromType, to, to))
+			}
+		// int -> float
+		case *irtypes.FloatType:
+			if fn.m.isSigned(fromType) {
+				inst = fn.cur.NewSIToFP(from, to)
+			} else {
+				inst = fn.cur.NewUIToFP(from, to)
+			}
+		// TODO: add support for more to types.
+		default:
+			panic(fmt.Errorf("support for converting from type %T (%v) to type %T (%v) not yet implemented", fromType, fromType, to, to))
+		}
+	case *irtypes.FloatType:
+		switch toType := to.(type) {
+		// float -> int
+		case *irtypes.IntType:
+			if fn.m.isSigned(toType) {
+				inst = fn.cur.NewFPToSI(from, to)
+			} else {
+				inst = fn.cur.NewFPToUI(from, to)
+			}
+		// float -> float
+		case *irtypes.FloatType:
+			fromPrec := precFromFloatKind(fromType.Kind)
+			toPrec := precFromFloatKind(toType.Kind)
+			switch {
+			case fromPrec == toPrec:
+				// Currently the number of precision bits is unique to each
+				// floating-point kind, thus this simply converts from e.g. double
+				// to double. Otherwise, bitcast would not be valid.
+				// TODO: consider using FPTrunc of FPExt instead, as they are
+				// float-aware (which bitcast is not).
+				inst = fn.cur.NewBitCast(from, to)
+			case fromPrec < toPrec:
+				inst = fn.cur.NewFPExt(from, to)
+			case fromPrec > toPrec:
+				inst = fn.cur.NewFPTrunc(from, to)
+			}
+		// TODO: add support for more to types.
+		default:
+			panic(fmt.Errorf("support for converting from type %T (%v) to type %T (%v) not yet implemented", fromType, fromType, to, to))
+		}
+	case *irtypes.PointerType:
+		switch to.(type) {
+		// pointer -> pointer
+		case *irtypes.PointerType:
+			inst = fn.cur.NewBitCast(from, to)
+		// TODO: add support for more to types.
+		default:
+			panic(fmt.Errorf("support for converting from type %T (%v) to type %T (%v) not yet implemented", fromType, fromType, to, to))
+		}
+	// TODO: add support for more from types.
+	default:
+		panic(fmt.Errorf("support for converting from type %T (%v) to type %T (%v) not yet implemented", fromType, fromType, to, to))
+	}
+	return inst
 }
