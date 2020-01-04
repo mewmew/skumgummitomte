@@ -103,3 +103,18 @@ $ lli main.ll
 # bar
 # foo
 ```
+
+### Slices
+
+Compile and run `main` program [examples/slices](examples/slices/main.go).
+```bash
+$ sgt -o slices.ll ./examples/slices
+$ llvm-link -S -o main.ll slices.ll std/builtin.ll
+$ lli main.ll
+# Output:
+#
+# qux
+# baz
+# bar
+# foo
+```
