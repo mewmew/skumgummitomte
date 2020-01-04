@@ -44,5 +44,6 @@ func (m *Module) synthLen(argType irtypes.Type) *ir.Func {
 		panic(fmt.Errorf("support for type %T (%q) as argument to builtin len function not yet implemented", argType, argType.Name()))
 	}
 	entry.NewRet(length)
+	m.predeclaredFuncs[lenFuncName] = lenFunc
 	return lenFunc
 }
