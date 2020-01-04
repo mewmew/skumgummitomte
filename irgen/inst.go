@@ -258,7 +258,7 @@ func (fn *Func) emitAlloc(goInst *ssa.Alloc) error {
 	if len(goInst.Comment) > 0 {
 		addMetadata(inst, "var_name", goInst.Comment)
 	}
-	dbg.Println("   inst:", inst)
+	dbg.Println("   inst:", inst.LLString())
 	// The space of a stack allocated local variable is re-initialized to zero
 	// each time it is executed.
 	zero := irconstant.NewZeroInitializer(ptrType.ElemType)
@@ -857,17 +857,33 @@ func (fn *Func) emitIndexAddr(goInst *ssa.IndexAddr) error {
 	switch xType := x.Type().(type) {
 	// *array
 	case *irtypes.PointerType:
-		// TODO: Verify that arrays are working as intended.
+		// TODO: Verify that index into arrays are working as intended.
 		zero := irconstant.NewInt(irtypes.I64, 0)
 		indices := []irvalue.Value{
 			zero,
 			index,
 		}
 		inst = fn.cur.NewGetElementPtr(xType.ElemType, x, indices...)
-	// slice
 	case *irtypes.StructType:
-		// TODO: fix handling of slices ({data, len, cap} slice header struct).
-		panic(fmt.Errorf("support for %T (slice) of indexaddr instruction not yet implemented", xType))
+		switch {
+		// slice
+		case strings.HasPrefix(xType.Name(), "[]"):
+			dataType := xType.Fields[0].(*irtypes.PointerType)
+			data := fn.cur.NewExtractValue(x, 0)
+			addMetadata(data, "field", "data")
+			dbg.Println("   data:", data.LLString())
+			length := fn.cur.NewExtractValue(x, 1)
+			addMetadata(length, "field", "len")
+			capacity := fn.cur.NewExtractValue(x, 2)
+			addMetadata(capacity, "field", "cap")
+			// TODO: add bounds check of index against 0, len and cap.
+			//
+			//    0 <= index <= len <= cap
+			// TODO: Verify that index into slices are working as intended.
+			inst = fn.cur.NewGetElementPtr(dataType.ElemType, data, index)
+		default:
+			panic(fmt.Errorf("support for type %T (%q) in indexaddr instruction not yet implemented", xType, xType.Name()))
+		}
 	default:
 		panic(fmt.Errorf("support for %T of indexaddr instruction not yet implemented", xType))
 	}
