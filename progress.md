@@ -221,7 +221,7 @@
 - [ ] [index/suffixarray](https://golang.org/pkg/index/suffixarray)
 - [ ] [internal/bytealg](https://golang.org/pkg/internal/bytealg)
 - [ ] [internal/cfg](https://golang.org/pkg/internal/cfg)
-- [ ] [internal/cpu](https://golang.org/pkg/internal/cpu)
+- [x] [internal/cpu](https://golang.org/pkg/internal/cpu) (as of 2020-01-04, rev [da6d870](https://github.com/mewmew/skumgummitomte/commit/da6d8704f1462c383211a9a56b61ed4bf55c07c2))
 - [ ] [internal/fmtsort](https://golang.org/pkg/internal/fmtsort)
 - [ ] [internal/goroot](https://golang.org/pkg/internal/goroot)
 - [ ] [internal/goversion](https://golang.org/pkg/internal/goversion)
