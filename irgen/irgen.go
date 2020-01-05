@@ -85,8 +85,7 @@ func CompilePackage(goPkg *ssa.Package) (*ir.Module, error) {
 	})
 
 	// Compile methods of Go SSA package.
-	done = make(map[*ssa.Package]bool)
-	if err := m.emitAllPkgMethods(goPkg, done); err != nil {
+	if err := m.emitPkgMethods(goPkg); err != nil {
 		return nil, errors.WithStack(err)
 	}
 
@@ -349,27 +348,6 @@ func (m *Module) emitPkgTypeDefs(goPkg *ssa.Package) error {
 }
 
 // ~~~ [ methods ] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-// emitAllPkgMethods compiles the methods of the given Go SSA package and its
-// dependencies into LLVM IR, emitting to m.
-//
-// Pre-condition: index methods and globals of m.
-func (m *Module) emitAllPkgMethods(goPkg *ssa.Package, done map[*ssa.Package]bool) error {
-	if done[goPkg] {
-		return nil
-	}
-	done[goPkg] = true
-	for _, imp := range goPkg.Pkg.Imports() {
-		goImpPkg := goPkg.Prog.Package(imp)
-		if err := m.emitAllPkgMethods(goImpPkg, done); err != nil {
-			return errors.WithStack(err)
-		}
-	}
-	if err := m.emitPkgMethods(goPkg); err != nil {
-		return errors.WithStack(err)
-	}
-	return nil
-}
 
 // emitPkgMethods compiles the methods of the given Go SSA package into LLVM IR,
 // emitting to m.
