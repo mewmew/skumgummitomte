@@ -3,6 +3,7 @@ package irgen
 
 import (
 	"fmt"
+	gotypes "go/types"
 	"io"
 	"log"
 	"os"
@@ -57,14 +58,20 @@ func CompilePackage(goPkg *ssa.Package) (*ir.Module, error) {
 	m.initPredeclaredFuncs()
 
 	// Compile type definitions of Go SSA package and its dependencies.
-	emitted := make(map[*ssa.Package]bool)
-	if err := m.emitAllTypeDefs(goPkg, emitted); err != nil {
+	done := make(map[*ssa.Package]bool)
+	if err := m.emitAllPkgTypeDefs(goPkg, done); err != nil {
 		return nil, errors.WithStack(err)
 	}
 
 	// Index members of Go SSA package and its dependencies.
-	indexed := make(map[*ssa.Package]bool)
-	if err := m.indexAllMembers(goPkg, indexed); err != nil {
+	done = make(map[*ssa.Package]bool)
+	if err := m.indexAllPkgMembers(goPkg, done); err != nil {
+		return nil, errors.WithStack(err)
+	}
+
+	// Index methods of Go SSA package and its dependencies.
+	done = make(map[*ssa.Package]bool)
+	if err := m.indexAllPkgMethods(goPkg, done); err != nil {
 		return nil, errors.WithStack(err)
 	}
 
@@ -76,6 +83,12 @@ func CompilePackage(goPkg *ssa.Package) (*ir.Module, error) {
 	sort.Slice(goMembers, func(i, j int) bool {
 		return goMembers[i].RelString(nil) < goMembers[j].RelString(nil)
 	})
+
+	// Compile methods of Go SSA package.
+	done = make(map[*ssa.Package]bool)
+	if err := m.emitAllPkgMethods(goPkg, done); err != nil {
+		return nil, errors.WithStack(err)
+	}
 
 	// Compile members of Go SSA package.
 	for _, goMember := range goMembers {
@@ -152,30 +165,32 @@ func CompilePackage(goPkg *ssa.Package) (*ir.Module, error) {
 
 // --- [ index ] ---------------------------------------------------------------
 
-// indexAllMembers indexes the members of the given Go SSA package and its
+// ~~~ [ members ] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// indexAllPkgMembers indexes the members of the given Go SSA package and its
 // dependencies, creating corresponding LLVM IR constructs, emitting to m.
-func (m *Module) indexAllMembers(goPkg *ssa.Package, indexed map[*ssa.Package]bool) error {
-	if indexed[goPkg] {
+func (m *Module) indexAllPkgMembers(goPkg *ssa.Package, done map[*ssa.Package]bool) error {
+	if done[goPkg] {
 		return nil
 	}
-	indexed[goPkg] = true
+	done[goPkg] = true
 	for _, imp := range goPkg.Pkg.Imports() {
 		goImpPkg := goPkg.Prog.Package(imp)
-		if err := m.indexAllMembers(goImpPkg, indexed); err != nil {
+		if err := m.indexAllPkgMembers(goImpPkg, done); err != nil {
 			return errors.WithStack(err)
 		}
 	}
-	if err := m.indexMembers(goPkg); err != nil {
+	if err := m.indexPkgMembers(goPkg); err != nil {
 		return errors.WithStack(err)
 	}
 	return nil
 }
 
-// indexMembers indexes the members of the given Go SSA package, creating
+// indexPkgMembers indexes the members of the given Go SSA package, creating
 // corresponding LLVM IR constructs, emitting to m.
-func (m *Module) indexMembers(goPkg *ssa.Package) error {
+func (m *Module) indexPkgMembers(goPkg *ssa.Package) error {
 	// Sort member names of Go SSA package.
-	dbg.Println("indexing package:", goPkg.Pkg.Path())
+	dbg.Println("indexing members package:", goPkg.Pkg.Path())
 	goMembers := make([]ssa.Member, 0, len(goPkg.Members))
 	for _, goMember := range goPkg.Members {
 		goMembers = append(goMembers, goMember)
@@ -183,10 +198,7 @@ func (m *Module) indexMembers(goPkg *ssa.Package) error {
 	sort.Slice(goMembers, func(i, j int) bool {
 		return goMembers[i].RelString(nil) < goMembers[j].RelString(nil)
 	})
-	for _, goMember := range goMembers {
-		dbg.Println("   index member:", goMember.RelString(nil))
-	}
-	// Index SSA members of Go SSA package.
+	// Index members of Go SSA package.
 	external := m.goPkg != goPkg
 	for _, goMember := range goMembers {
 		if err := m.indexMember(goMember, external); err != nil {
@@ -200,6 +212,8 @@ func (m *Module) indexMembers(goPkg *ssa.Package) error {
 // construct, emitting to m. The external boolean indicates whether the Go SSA
 // member is defined in an external Go package.
 func (m *Module) indexMember(goMember ssa.Member, external bool) error {
+	dbg.Println("indexMember")
+	dbg.Println("   index member:", goMember.RelString(nil))
 	switch goMember := goMember.(type) {
 	case *ssa.NamedConst:
 		// TODO: index named constant as LLVM IR constant global variable.
@@ -219,34 +233,102 @@ func (m *Module) indexMember(goMember ssa.Member, external bool) error {
 	}
 }
 
-// --- [ compile ] -------------------------------------------------------------
+// ~~~ [ methods ] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-// emitAllTypeDefs compiles the type definitions of the given Go SSA package and
-// its dependencies into LLVM IR, emitting to m.
-//
-// Pre-condition: index type definitions of m.
-func (m *Module) emitAllTypeDefs(goPkg *ssa.Package, emitted map[*ssa.Package]bool) error {
-	if emitted[goPkg] {
+// indexAllPkgMethods indexes the methods of the given Go SSA package and its
+// dependencies, creating corresponding LLVM IR constructs, emitting to m.
+func (m *Module) indexAllPkgMethods(goPkg *ssa.Package, done map[*ssa.Package]bool) error {
+	if done[goPkg] {
 		return nil
 	}
-	emitted[goPkg] = true
+	done[goPkg] = true
 	for _, imp := range goPkg.Pkg.Imports() {
 		goImpPkg := goPkg.Prog.Package(imp)
-		if err := m.emitAllTypeDefs(goImpPkg, emitted); err != nil {
+		if err := m.indexAllPkgMethods(goImpPkg, done); err != nil {
 			return errors.WithStack(err)
 		}
 	}
-	if err := m.emitTypeDefs(goPkg); err != nil {
+	if err := m.indexPkgMethods(goPkg); err != nil {
 		return errors.WithStack(err)
 	}
 	return nil
 }
 
-// emitTypeDefs compiles the type definitions of the given Go SSA package into
-// LLVM IR, emitting to m.
+// indexPkgMethods indexes the methods of the given Go SSA package, creating
+// corresponding LLVM IR constructs, emitting to m.
+func (m *Module) indexPkgMethods(goPkg *ssa.Package) error {
+	// Sort method names of Go SSA package.
+	dbg.Println("indexing methods of package:", goPkg.Pkg.Path())
+	var goNamedTypes []*gotypes.Named
+	for _, goMember := range goPkg.Members {
+		goType, ok := goMember.(*ssa.Type)
+		if !ok {
+			continue
+		}
+		goNamedType, ok := goType.Type().(*gotypes.Named)
+		if !ok {
+			continue
+		}
+		goNamedTypes = append(goNamedTypes, goNamedType)
+	}
+	sort.Slice(goNamedTypes, func(i, j int) bool {
+		return m.fullTypeName(goNamedTypes[i]) < m.fullTypeName(goNamedTypes[j])
+	})
+	// Index methods of named Go types.
+	for _, goNamedType := range goNamedTypes {
+		if err := m.indexTypeMethod(goNamedType); err != nil {
+			return errors.WithStack(err)
+		}
+	}
+	return nil
+}
+
+// indexTypeMethod indexes the methods of the given named Go type, creating a
+// corresponding LLVM IR constructs, emitting to m.
+func (m *Module) indexTypeMethod(goNamedType *gotypes.Named) error {
+	dbg.Println("indexTypeMethod")
+	dbg.Println("   index methods of named type:", m.fullTypeName(goNamedType))
+	for i := 0; i < goNamedType.NumMethods(); i++ {
+		goMethod := goNamedType.Method(i)
+		dbg.Printf("      index method %q on type %q", goMethod.Name(), m.fullTypeName(goNamedType))
+		goFunc := m.goPkg.Prog.FuncValue(goMethod)
+		if err := m.indexFunc(goFunc); err != nil {
+			return errors.WithStack(err)
+		}
+	}
+	return nil
+}
+
+// --- [ compile ] -------------------------------------------------------------
+
+// ~~~ [ types ] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// emitAllPkgTypeDefs compiles the type definitions of the given Go SSA package
+// and its dependencies into LLVM IR, emitting to m.
 //
 // Pre-condition: index type definitions of m.
-func (m *Module) emitTypeDefs(goPkg *ssa.Package) error {
+func (m *Module) emitAllPkgTypeDefs(goPkg *ssa.Package, done map[*ssa.Package]bool) error {
+	if done[goPkg] {
+		return nil
+	}
+	done[goPkg] = true
+	for _, imp := range goPkg.Pkg.Imports() {
+		goImpPkg := goPkg.Prog.Package(imp)
+		if err := m.emitAllPkgTypeDefs(goImpPkg, done); err != nil {
+			return errors.WithStack(err)
+		}
+	}
+	if err := m.emitPkgTypeDefs(goPkg); err != nil {
+		return errors.WithStack(err)
+	}
+	return nil
+}
+
+// emitPkgTypeDefs compiles the type definitions of the given Go SSA package
+// into LLVM IR, emitting to m.
+//
+// Pre-condition: index type definitions of m.
+func (m *Module) emitPkgTypeDefs(goPkg *ssa.Package) error {
 	// Sort member names of Go SSA package.
 	var goTypes []*ssa.Type
 	for _, goMember := range goPkg.Members {
@@ -260,6 +342,74 @@ func (m *Module) emitTypeDefs(goPkg *ssa.Package) error {
 	// Emit Go SSA type definition of Go SSA package.
 	for _, goType := range goTypes {
 		if err := m.emitType(goType); err != nil {
+			return errors.WithStack(err)
+		}
+	}
+	return nil
+}
+
+// ~~~ [ methods ] ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// emitAllPkgMethods compiles the methods of the given Go SSA package and its
+// dependencies into LLVM IR, emitting to m.
+//
+// Pre-condition: index methods and globals of m.
+func (m *Module) emitAllPkgMethods(goPkg *ssa.Package, done map[*ssa.Package]bool) error {
+	if done[goPkg] {
+		return nil
+	}
+	done[goPkg] = true
+	for _, imp := range goPkg.Pkg.Imports() {
+		goImpPkg := goPkg.Prog.Package(imp)
+		if err := m.emitAllPkgMethods(goImpPkg, done); err != nil {
+			return errors.WithStack(err)
+		}
+	}
+	if err := m.emitPkgMethods(goPkg); err != nil {
+		return errors.WithStack(err)
+	}
+	return nil
+}
+
+// emitPkgMethods compiles the methods of the given Go SSA package into LLVM IR,
+// emitting to m.
+//
+// Pre-condition: index methods and globals of m.
+func (m *Module) emitPkgMethods(goPkg *ssa.Package) error {
+	// Sort method names of Go SSA package.
+	var goNamedTypes []*gotypes.Named
+	for _, goMember := range goPkg.Members {
+		goType, ok := goMember.(*ssa.Type)
+		if !ok {
+			continue
+		}
+		goNamedType, ok := goType.Type().(*gotypes.Named)
+		if !ok {
+			continue
+		}
+		goNamedTypes = append(goNamedTypes, goNamedType)
+	}
+	sort.Slice(goNamedTypes, func(i, j int) bool {
+		return m.fullTypeName(goNamedTypes[i]) < m.fullTypeName(goNamedTypes[j])
+	})
+	// Emit Go SSA methods of Go SSA package.
+	for _, goNamedType := range goNamedTypes {
+		if err := m.emitTypeMethod(goNamedType); err != nil {
+			return errors.WithStack(err)
+		}
+	}
+	return nil
+}
+
+// emitTypeMethod compiles the methods of the given named Go type into LLVM IR,
+// emitting to m.
+//
+// Pre-condition: index methods and globals of m.
+func (m *Module) emitTypeMethod(goNamedType *gotypes.Named) error {
+	for i := 0; i < goNamedType.NumMethods(); i++ {
+		goMethod := goNamedType.Method(i)
+		goFunc := m.goPkg.Prog.FuncValue(goMethod)
+		if err := m.emitFunc(goFunc); err != nil {
 			return errors.WithStack(err)
 		}
 	}
